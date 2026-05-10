@@ -1,0 +1,5 @@
+.edge-*/
+server.log
+server.err
+*.tmp
+

@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Planificador de neteja</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navegacio principal">
+        <div class="brand">
+          <span class="brand-mark">N</span>
+          <div>
+            <strong>Neteja Pro</strong>
+            <small>Planificacio anual</small>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" aria-label="Seccions">
+          <button class="nav-tab is-active" data-view="dashboard" type="button">Resum</button>
+          <button class="nav-tab" data-view="planner" type="button">Planificador</button>
+          <button class="nav-tab" data-view="calendar" type="button">Calendari</button>
+          <button class="nav-tab" data-view="clients" type="button">Clients</button>
+          <button class="nav-tab" data-view="workers" type="button">Treballadors</button>
+          <button class="nav-tab" data-view="vacations" type="button">Vacances</button>
+        </nav>
+
+        <div class="week-tools">
+          <label for="weekStart">Setmana</label>
+          <input id="weekStart" type="date" />
+          <button id="resetData" class="ghost-button" type="button">Reiniciar dades</button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Coordinacio dinamica</p>
+            <h1 id="viewTitle">Resum operatiu</h1>
+          </div>
+          <div class="topbar-actions">
+            <span id="assignmentScore" class="pill score-pill"></span>
+            <label class="inline-toggle">
+              <input id="draftMode" type="checkbox" />
+              Esborrany
+            </label>
+            <label class="inline-toggle">
+              <input id="developerMode" type="checkbox" />
+              Mode desenvolupador
+            </label>
+            <button id="autoAssign" class="primary-button" type="button">Optimitzar setmana</button>
+            <button id="confirmDraft" class="primary-button is-hidden" type="button">Confirmar</button>
+            <button id="discardDraft" class="secondary-button is-hidden" type="button">Descartar</button>
+            <button id="clearAssignments" class="secondary-button" type="button">Netejar assignacions</button>
+          </div>
+          <p id="draftScorePreview" class="score-preview is-hidden"></p>
+        </header>
+
+        <section id="dashboard" class="view is-active" aria-labelledby="viewTitle">
+          <div class="metric-grid" id="metrics"></div>
+          <section class="panel daily-dashboard-panel">
+            <div class="panel-header daily-header">
+              <div>
+                <h2>Planificacio del dia</h2>
+                <p id="dashboardDaySummary" class="meta"></p>
+              </div>
+              <div class="daily-controls">
+                <label class="inline-search">
+                  <span>Dia</span>
+                  <input id="dashboardDate" type="date" />
+                </label>
+                <button id="dashboardToday" class="secondary-button" type="button">Avui</button>
+                <button id="dashboardNextServiceDay" class="secondary-button" type="button">Proxim servei</button>
+                <span id="dashboardDayCount" class="pill"></span>
+              </div>
+            </div>
+            <div id="dashboardDayPlan" class="daily-plan-list"></div>
+          </section>
+          <section id="draftComparisonPanel" class="panel draft-comparison-panel is-hidden">
+            <div class="panel-header">
+              <h2>Comparador esborrany</h2>
+              <span id="draftComparisonCount" class="pill"></span>
+            </div>
+            <div id="draftComparisonList" class="data-table"></div>
+          </section>
+          <div class="split-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Accions pendents</h2>
+                <span id="serviceCount" class="pill"></span>
+              </div>
+              <div id="upcomingServices" class="service-list"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Seguiment</h2>
+                <span id="conflictCount" class="pill danger"></span>
+              </div>
+              <div id="conflicts" class="conflict-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="planner" class="view" aria-labelledby="viewTitle">
+          <div class="planner-toolbar">
+            <div class="legend">
+              <span><i class="dot covered"></i>Cobert</span>
+              <span><i class="dot open"></i>Pendent</span>
+              <span><i class="dot issue"></i>Conflicte</span>
+            </div>
+            <label class="inline-search">
+              <span>Cerca</span>
+              <input id="plannerSearch" type="search" placeholder="Client, zona o dia" />
+            </label>
+            <div class="filter-group" role="group" aria-label="Filtre de serveis">
+              <button class="filter-button is-active" data-filter="all" type="button">Tots</button>
+              <button class="filter-button" data-filter="open" type="button">Pendents</button>
+              <button class="filter-button" data-filter="issues" type="button">Amb avisos</button>
+            </div>
+          </div>
+          <div id="weekGrid" class="week-grid"></div>
+        </section>
+
+        <section id="calendar" class="view" aria-labelledby="viewTitle">
+          <div class="planner-toolbar annual-toolbar">
+            <label class="inline-search">
+              <span>Any</span>
+              <select id="calendarYear"></select>
+            </label>
+            <label class="inline-search">
+              <span>Client</span>
+              <select id="calendarClientFilter"></select>
+            </label>
+            <label class="inline-search">
+              <span>Estat</span>
+              <select id="calendarStatusFilter">
+                <option value="all">Tots</option>
+                <option value="open">Pendents</option>
+                <option value="covered">Coberts</option>
+                <option value="issues">Conflictes</option>
+                <option value="paused">Pausats</option>
+              </select>
+            </label>
+            <label class="inline-search">
+              <span>Des de</span>
+              <input id="calendarRangeStart" type="date" />
+            </label>
+            <label class="inline-search">
+              <span>Fins</span>
+              <input id="calendarRangeEnd" type="date" />
+            </label>
+            <button id="calendarOptimizeRange" class="primary-button" type="button">Optimitzar rang</button>
+          </div>
+          <div id="calendarSummary" class="metric-grid compact-metrics"></div>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Calendari anual de serveis</h2>
+              <span class="pill" id="calendarServiceCount"></span>
+            </div>
+            <div id="yearCalendar" class="year-calendar"></div>
+          </section>
+          <section class="panel detail-panel">
+            <div class="panel-header">
+              <h2 id="calendarDetailTitle">Detall del dia</h2>
+              <span class="pill" id="calendarDetailCount"></span>
+            </div>
+            <div id="calendarDayDetail" class="service-list"></div>
+          </section>
+        </section>
+
+        <section id="clients" class="view" aria-labelledby="viewTitle">
+          <div class="management-layout">
+            <form id="serviceForm" class="panel form-panel">
+              <div class="panel-header">
+                <h2>Servei recurrent</h2>
+              </div>
+              <label>
+                Client
+                <input name="client" required placeholder="Ex. El paqui" />
+              </label>
+              <label>
+                Zona
+                <select name="zone" required></select>
+              </label>
+              <fieldset class="day-picker">
+                <legend>Dies recurrents</legend>
+                <div id="serviceDays" class="day-checks"></div>
+              </fieldset>
+              <div class="form-row two-cols">
+                <label>
+                  Periodicitat
+                  <select name="recurrenceType">
+                    <option value="weekly" selected>Setmanal</option>
+                    <option value="biweekly">Cada 2 setmanes</option>
+                    <option value="monthly">Mensual</option>
+                    <option value="annual">Anual</option>
+                    <option value="seasonal">Temporada</option>
+                  </select>
+                </label>
+                <label>
+                  Actiu des de
+                  <input name="activeFrom" type="date" />
+                </label>
+              </div>
+              <label>
+                Actiu fins
+                <input name="activeTo" type="date" />
+              </label>
+              <div class="form-row two-cols">
+                <label>
+                  Inici
+                  <input name="start" type="time" required value="09:00" />
+                </label>
+                <label>
+                  Hores per visita
+                  <input name="durationHours" type="number" min="0.5" max="12" step="0.5" required value="2" />
+                </label>
+              </div>
+              <p id="weeklyPreview" class="form-summary">0 h/setmana</p>
+              <label>
+                Prioritat
+                <select name="priority">
+                  <option value="Alta">Alta</option>
+                  <option value="Mitjana" selected>Mitjana</option>
+                  <option value="Baixa">Baixa</option>
+                </select>
+              </label>
+              <label>
+                Requisits
+                <input name="requirements" placeholder="claus, vehicle, vidres..." />
+              </label>
+              <button class="primary-button full-width" type="submit">Afegir recurrencia</button>
+            </form>
+
+            <form id="clientProfileForm" class="panel form-panel">
+              <div class="panel-header">
+                <h2>Fitxa de client</h2>
+              </div>
+              <label>
+                Client
+                <select name="client" required></select>
+              </label>
+              <label>
+                Treballador preferit
+                <select name="preferredWorkerId"></select>
+              </label>
+              <label>
+                Treballadors vetats
+                <select name="vetoedWorkers" multiple></select>
+              </label>
+              <div class="form-row two-cols">
+                <label>
+                  Horari preferent
+                  <select name="preferredShift"></select>
+                </label>
+                <label>
+                  Exigencia
+                  <select name="qualityLevel">
+                    <option value="3">Normal</option>
+                    <option value="4">Alta</option>
+                    <option value="5">Molt alta</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row two-cols">
+                <label>
+                  Continuitat
+                  <select name="continuityPolicy">
+                    <option value="flexible">Flexible</option>
+                    <option value="preferSame">Prioritzar persona coneguda</option>
+                    <option value="requireKnown">Nomes persona coneguda</option>
+                  </select>
+                </label>
+                <label>
+                  Canvis
+                  <select name="changePolicy">
+                    <option value="free">Permetre canvis</option>
+                    <option value="review">Revisar abans de canviar</option>
+                    <option value="strict">Canviar nomes si es necessari</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Notes operatives
+                <input name="notes" placeholder="Claus, alarma, accés, preferències..." />
+              </label>
+              <button class="primary-button full-width" type="submit">Guardar fitxa</button>
+            </form>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Clients recurrents</h2>
+                <span class="pill" id="clientServiceCount"></span>
+              </div>
+              <div id="recurrenceTable" class="data-table"></div>
+            </section>
+
+            <section class="panel wide-panel">
+              <div class="panel-header">
+                <h2>Preferencies de clients</h2>
+                <span class="pill" id="clientProfileCount"></span>
+              </div>
+              <div id="clientProfileTable" class="data-table"></div>
+            </section>
+
+            <section class="panel wide-panel">
+              <div class="panel-header">
+                <h2>Serveis generats</h2>
+                <span class="pill" id="generatedServiceCount"></span>
+              </div>
+              <div id="serviceTable" class="data-table"></div>
+            </section>
+
+            <section class="panel wide-panel">
+              <div class="panel-header">
+                <h2>Historial de serveis fets</h2>
+                <span class="pill" id="serviceHistoryCount"></span>
+              </div>
+              <div id="serviceHistoryTable" class="data-table"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="workers" class="view" aria-labelledby="viewTitle">
+          <div class="management-layout">
+            <form id="workerForm" class="panel form-panel">
+              <div class="panel-header">
+                <h2 id="workerFormTitle">Nou treballador</h2>
+              </div>
+              <label>
+                Nom
+                <input name="name" required placeholder="Ex. Marta" />
+              </label>
+              <div class="form-row two-cols">
+                <label>
+                  Perfil
+                  <select name="role" required></select>
+                </label>
+                <label>
+                  Estat
+                  <select name="status" required></select>
+                </label>
+              </div>
+              <div class="form-row two-cols">
+                <label>
+                  Contracte
+                  <select name="contractType" required></select>
+                </label>
+                <label>
+                  Zona base
+                  <select name="homeZone" required></select>
+                </label>
+              </div>
+              <div class="form-row two-cols">
+                <label>
+                  Transport
+                  <select name="transport" required></select>
+                </label>
+              </div>
+              <fieldset class="day-picker">
+                <legend>Zones disponibles</legend>
+                <div id="workerZones" class="day-checks"></div>
+              </fieldset>
+              <fieldset class="day-picker">
+                <legend>Habilitats i permisos</legend>
+                <div id="workerSkills" class="day-checks"></div>
+              </fieldset>
+              <fieldset class="day-picker">
+                <legend>Tipus de servei</legend>
+                <div id="workerServiceTypes" class="day-checks"></div>
+              </fieldset>
+              <label>
+                Hores maximes/setmana
+                <input name="maxHours" type="number" min="1" max="60" value="30" required />
+              </label>
+              <div class="form-row two-cols">
+                <label>
+                  Hores maximes/dia
+                  <input name="maxDailyHours" type="number" min="1" max="12" step="0.5" value="8" required />
+                </label>
+                <label>
+                  Cost hora
+                  <input name="hourlyCost" type="number" min="0" max="100" step="0.5" value="14" required />
+                </label>
+              </div>
+              <label class="inline-check">
+                <input name="acceptsOvertime" type="checkbox" />
+                Vol hores extres
+              </label>
+              <div class="form-row two-cols">
+                <label>
+                  Torn preferit
+                  <select name="preferredShift" required></select>
+                </label>
+                <label>
+                  Marge entre serveis
+                  <select name="travelBuffer" required></select>
+                </label>
+              </div>
+              <div class="form-row three-cols">
+                <label>
+                  Experiencia
+                  <select name="experience" required></select>
+                </label>
+                <label>
+                  Qualitat
+                  <select name="quality" required></select>
+                </label>
+                <label>
+                  Fiabilitat
+                  <select name="reliability" required></select>
+                </label>
+              </div>
+              <fieldset class="availability-builder">
+                <legend>Disponibilitat</legend>
+                <div id="workerAvailability" class="availability-grid"></div>
+              </fieldset>
+              <button id="workerSubmitButton" class="primary-button full-width" type="submit">Afegir treballador</button>
+              <button id="workerCancelEdit" class="secondary-button full-width is-hidden" type="button">Cancel·lar edicio</button>
+            </form>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Equip</h2>
+                <span class="pill" id="workerCount"></span>
+              </div>
+              <div id="workerTable" class="data-table"></div>
+            </section>
+            <section class="panel wide-panel">
+              <div class="panel-header">
+                <h2>Carrega de plantilla</h2>
+                <span class="pill">Setmana activa</span>
+              </div>
+              <div id="workerLoadTable" class="data-table"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="vacations" class="view" aria-labelledby="viewTitle">
+          <div class="management-layout">
+            <form id="clientVacationForm" class="panel form-panel">
+              <div class="panel-header">
+                <h2>Vacances client</h2>
+              </div>
+              <label>
+                Client
+                <select name="client" required></select>
+              </label>
+              <div class="form-row two-cols">
+                <label>
+                  Inici
+                  <input name="start" type="date" required />
+                </label>
+                <label>
+                  Fi
+                  <input name="end" type="date" required />
+                </label>
+              </div>
+              <label>
+                Motiu
+                <input name="reason" placeholder="Vacances, tancat, reforma..." />
+              </label>
+              <button class="primary-button full-width" type="submit">Afegir vacances client</button>
+            </form>
+
+            <form id="workerVacationForm" class="panel form-panel">
+              <div class="panel-header">
+                <h2>Absencia treballador</h2>
+              </div>
+              <label>
+                Treballador
+                <select name="workerId" required></select>
+              </label>
+              <div class="form-row two-cols">
+                <label>
+                  Inici
+                  <input name="start" type="date" required />
+                </label>
+                <label>
+                  Fi
+                  <input name="end" type="date" required />
+                </label>
+              </div>
+              <label class="inline-check form-checkbox">
+                <input name="indefinite" type="checkbox" />
+                Indefinit
+              </label>
+              <label>
+                Motiu
+                <select name="reason" required>
+                  <option>Vacances</option>
+                  <option>Baixa</option>
+                  <option>Permis</option>
+                  <option>No disponible</option>
+                </select>
+              </label>
+              <button class="primary-button full-width" type="submit">Afegir absencia</button>
+            </form>
+
+            <section class="panel wide-panel">
+              <div class="panel-header">
+                <h2>Calendari d'absencies</h2>
+                <span class="pill" id="vacationCount"></span>
+              </div>
+              <div id="vacationCalendar" class="vacation-calendar"></div>
+              <div id="vacationTable" class="data-table"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="calendarDayModal" class="modal-backdrop" hidden aria-hidden="true">
+      <section class="day-modal" role="dialog" aria-modal="true" aria-labelledby="calendarModalTitle">
+        <header class="modal-header">
+          <div>
+            <p class="eyebrow">Planificacio diaria</p>
+            <h2 id="calendarModalTitle">Serveis del dia</h2>
+            <p id="calendarModalSubtitle" class="meta"></p>
+          </div>
+          <button id="calendarModalClose" class="icon-button" type="button" aria-label="Tancar finestra">Tancar</button>
+        </header>
+        <div id="calendarModalSummary" class="modal-summary"></div>
+        <div id="calendarModalServices" class="modal-service-list"></div>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
