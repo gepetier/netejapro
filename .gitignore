@@ -1,5 +1,5 @@
 .edge-*/
+.tools/
 server.log
 server.err
 *.tmp
-
