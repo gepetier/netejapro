@@ -233,9 +233,57 @@ h3 {
   gap: 10px;
 }
 
+.mini-actions {
+  flex-wrap: wrap;
+}
+
 .topbar-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.header-actions,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.form-actions {
+  padding: 18px;
+}
+
+.settings-list {
+  display: grid;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-row span {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-row small {
+  color: var(--muted);
+}
+
+.settings-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
 }
 
 .primary-button,
@@ -548,6 +596,18 @@ h3 {
   accent-color: var(--accent);
 }
 
+.simulation-toggle {
+  border-color: #9dccbf;
+  background: #eef8f5;
+  color: var(--accent-strong);
+}
+
+.simulation-toggle.is-active {
+  border-color: #147c72;
+  background: #dff2ec;
+  box-shadow: inset 0 0 0 1px rgba(20, 124, 114, 0.2);
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -673,6 +733,21 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.planner-week-panel {
+  margin-bottom: 14px;
+}
+
+.planner-week-header {
+  min-height: 74px;
+}
+
+.week-navigator {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .inline-search {
   display: flex;
   align-items: center;
@@ -725,7 +800,7 @@ button:disabled {
 
 .week-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 12px;
 }
 
@@ -945,6 +1020,64 @@ button:disabled {
   font-size: 1.25rem;
 }
 
+.coordination-panel {
+  margin-bottom: 16px;
+}
+
+.coordination-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-tint);
+}
+
+.coordination-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.coordination-card strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.25rem;
+}
+
+.assignment-preview-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(120px, 0.6fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.assignment-preview-row:last-child {
+  border-bottom: 0;
+}
+
+.assignment-preview-row.is-unchanged {
+  color: var(--muted);
+}
+
+.modal-change-list {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
 .modal-service-list {
   display: grid;
   padding: 14px 18px 18px;
@@ -994,11 +1127,22 @@ button:disabled {
 .shift-card {
   display: grid;
   gap: 10px;
+  min-width: 0;
   border: 1px solid var(--line);
   border-left: 5px solid var(--amber);
   border-radius: 8px;
   padding: 12px;
   background: var(--surface);
+}
+
+.shift-card > div {
+  min-width: 0;
+}
+
+.shift-card .meta,
+.recommendation,
+.issue-text {
+  overflow-wrap: anywhere;
 }
 
 .shift-card.is-covered {
@@ -1045,6 +1189,7 @@ button:disabled {
   color: var(--accent-strong);
   font-size: 0.82rem;
   font-weight: 800;
+  white-space: normal;
 }
 
 .tiny-button.neutral {
@@ -1095,6 +1240,28 @@ button:disabled {
 
 .wide-panel {
   grid-column: 1 / -1;
+}
+
+.detail-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.summary-item {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-tint);
+}
+
+.summary-item strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.1rem;
 }
 
 .vacation-calendar {
@@ -1162,6 +1329,11 @@ button:disabled {
 .form-panel {
   align-self: start;
   padding-bottom: 18px;
+}
+
+.form-section {
+  display: grid;
+  gap: 0;
 }
 
 .form-panel label {
@@ -1391,7 +1563,8 @@ button:disabled {
   align-items: center;
 }
 
-.worker-summary.is-inactive {
+.worker-summary.is-inactive,
+.table-row.is-inactive {
   background: #fff0ee;
 }
 
@@ -1467,7 +1640,7 @@ button:disabled {
   }
 
   .nav-tabs {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
   }
 
   .week-tools {
@@ -1476,6 +1649,8 @@ button:disabled {
 
   .week-grid,
   .metric-grid,
+  .coordination-summary,
+  .detail-summary,
   .vacation-calendar,
   .year-calendar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1493,6 +1668,7 @@ button:disabled {
   .service-card,
   .daily-service-card,
   .incident-card,
+  .assignment-preview-row,
   .table-row,
   .comparison-row,
   .load-row,
@@ -1507,7 +1683,8 @@ button:disabled {
   .filter-group,
   .inline-search,
   .daily-controls,
-  .daily-actions {
+  .daily-actions,
+  .week-navigator {
     display: grid;
     grid-template-columns: 1fr;
   }
@@ -1525,6 +1702,8 @@ button:disabled {
   .nav-tabs,
   .week-grid,
   .metric-grid,
+  .coordination-summary,
+  .detail-summary,
   .vacation-calendar,
   .year-calendar,
   .modal-summary,

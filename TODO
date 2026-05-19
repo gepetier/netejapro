@@ -1,0 +1,7 @@
+COSES A ARREGLAR / AFEGIR QUAN TORNIN ELS TOKENS.
+
+· Es necessaria la assignacio dia a dia de cadascun dels serveis, ara mateix la assignació treballador / es massa extensa i necessitem poder assignar per exemple un servei que s'ha de anar tots els dijous de agost a una persona diferent cada dijous.
+· La modificació de client / treballador queda mal ajustada al ample de la pantalla.
+· Els selectors de calendari a la pestanya "calendari" de "Des de" i "Fins" no tenen sentit, es poden eliminar
+· A client necessitarem salvar tota la informació necessària, ubicació, NIF, persona de contacte, etc
+· En algun moment del desenvolupament haurem de poguer fer Login de diferents usuaris, 1 de administrador que es la interificie actual sense restriccions i un per a cadascun dels treballadors. Aixi podran veure fàcilment quin son els serveis que tenen i la informació necessària per fer-los. Els usuaris NOMES podran veure la informació relacionada amb ells.

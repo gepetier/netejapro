@@ -66,6 +66,11 @@ const seedState = {
   draftMode: false,
   developerMode: false,
   draftAssignments: {},
+  clientStatusFilter: "active",
+  workerStatusFilter: "active",
+  selectedClient: "",
+  selectedWorkerId: "",
+  clientStatuses: {},
   clientProfiles: {},
   serviceLogs: [],
   filter: "all",
@@ -211,6 +216,7 @@ const seedState = {
 };
 
 let state = loadState();
+let pendingAutoAssignment = null;
 
 const els = {
   viewTitle: document.querySelector("#viewTitle"),
@@ -224,6 +230,9 @@ const els = {
   draftComparisonPanel: document.querySelector("#draftComparisonPanel"),
   draftComparisonCount: document.querySelector("#draftComparisonCount"),
   draftComparisonList: document.querySelector("#draftComparisonList"),
+  coordinationMode: document.querySelector("#coordinationMode"),
+  coordinationSummary: document.querySelector("#coordinationSummary"),
+  coordinationAssignments: document.querySelector("#coordinationAssignments"),
   metrics: document.querySelector("#metrics"),
   dashboardDate: document.querySelector("#dashboardDate"),
   dashboardToday: document.querySelector("#dashboardToday"),
@@ -236,6 +245,11 @@ const els = {
   upcomingServices: document.querySelector("#upcomingServices"),
   conflicts: document.querySelector("#conflicts"),
   weekGrid: document.querySelector("#weekGrid"),
+  plannerWeekTitle: document.querySelector("#plannerWeekTitle"),
+  plannerWeekRange: document.querySelector("#plannerWeekRange"),
+  plannerPrevWeek: document.querySelector("#plannerPrevWeek"),
+  plannerCurrentWeek: document.querySelector("#plannerCurrentWeek"),
+  plannerNextWeek: document.querySelector("#plannerNextWeek"),
   plannerSearch: document.querySelector("#plannerSearch"),
   calendarYear: document.querySelector("#calendarYear"),
   calendarClientFilter: document.querySelector("#calendarClientFilter"),
@@ -255,14 +269,38 @@ const els = {
   calendarModalSummary: document.querySelector("#calendarModalSummary"),
   calendarModalServices: document.querySelector("#calendarModalServices"),
   calendarModalClose: document.querySelector("#calendarModalClose"),
+  autoAssignModal: document.querySelector("#autoAssignModal"),
+  autoAssignModalTitle: document.querySelector("#autoAssignModalTitle"),
+  autoAssignModalSubtitle: document.querySelector("#autoAssignModalSubtitle"),
+  autoAssignModalSummary: document.querySelector("#autoAssignModalSummary"),
+  autoAssignModalChanges: document.querySelector("#autoAssignModalChanges"),
+  autoAssignModalClose: document.querySelector("#autoAssignModalClose"),
+  autoAssignConfirm: document.querySelector("#autoAssignConfirm"),
+  autoAssignDiscard: document.querySelector("#autoAssignDiscard"),
   serviceForm: document.querySelector("#serviceForm"),
+  serviceSubmitButton: document.querySelector("#serviceSubmitButton"),
+  serviceCancelEdit: document.querySelector("#serviceCancelEdit"),
+  newClient: document.querySelector("#newClient"),
+  clientOverview: document.querySelector("#clientOverview"),
+  clientDetailPanel: document.querySelector("#clientDetailPanel"),
+  clientDetailTitle: document.querySelector("#clientDetailTitle"),
+  clientDetailStatus: document.querySelector("#clientDetailStatus"),
+  clientDetailActions: document.querySelector("#clientDetailActions"),
+  clientDetailSummary: document.querySelector("#clientDetailSummary"),
   clientProfileForm: document.querySelector("#clientProfileForm"),
+  clientProfileSubmitButton: document.querySelector("#clientProfileSubmitButton"),
+  clientProfileCancelEdit: document.querySelector("#clientProfileCancelEdit"),
   clientProfileTable: document.querySelector("#clientProfileTable"),
   clientProfileCount: document.querySelector("#clientProfileCount"),
   serviceHistoryTable: document.querySelector("#serviceHistoryTable"),
   serviceHistoryCount: document.querySelector("#serviceHistoryCount"),
   serviceDays: document.querySelector("#serviceDays"),
   weeklyPreview: document.querySelector("#weeklyPreview"),
+  newWorker: document.querySelector("#newWorker"),
+  workerDetailPanel: document.querySelector("#workerDetailPanel"),
+  workerDetailTitle: document.querySelector("#workerDetailTitle"),
+  workerDetailActions: document.querySelector("#workerDetailActions"),
+  workerDetailSummary: document.querySelector("#workerDetailSummary"),
   workerForm: document.querySelector("#workerForm"),
   workerFormTitle: document.querySelector("#workerFormTitle"),
   workerSubmitButton: document.querySelector("#workerSubmitButton"),
@@ -272,6 +310,7 @@ const els = {
   workerServiceTypes: document.querySelector("#workerServiceTypes"),
   workerAvailability: document.querySelector("#workerAvailability"),
   recurrenceTable: document.querySelector("#recurrenceTable"),
+  clientRecurrenceCount: document.querySelector("#clientRecurrenceCount"),
   serviceTable: document.querySelector("#serviceTable"),
   workerTable: document.querySelector("#workerTable"),
   workerLoadTable: document.querySelector("#workerLoadTable"),
@@ -300,9 +339,10 @@ function init() {
   fillDayControls();
   fillWorkerParameterControls();
   fillWorkerAvailabilityControls();
+  fillClientProfileControls();
   bindEvents();
   updateWeeklyPreview();
-  const initialView = ["dashboard", "planner", "calendar", "clients", "workers", "vacations"].includes(location.hash.slice(1))
+  const initialView = ["dashboard", "planner", "calendar", "clients", "workers", "vacations", "options"].includes(location.hash.slice(1))
     ? location.hash.slice(1)
     : "dashboard";
   switchView(initialView, false);
@@ -328,6 +368,10 @@ function bindEvents() {
     persist();
     render();
   });
+
+  els.plannerPrevWeek.addEventListener("click", () => shiftPlannerWeek(-7));
+  els.plannerCurrentWeek.addEventListener("click", () => setPlannerWeek(formatDateInput(getMonday(new Date()))));
+  els.plannerNextWeek.addEventListener("click", () => shiftPlannerWeek(7));
 
   els.dashboardDate.addEventListener("change", () => {
     state.dashboardDate = els.dashboardDate.value;
@@ -398,10 +442,10 @@ function bindEvents() {
     state.draftMode = els.draftMode.checked;
     if (state.draftMode) {
       ensureDraftAssignments();
-      showToast("Mode esborrany activat. Els canvis no es confirmaran fins al final.");
+      showToast("Simulació activada. Les assignacions proposades no canviaran la planificació confirmada fins que les apliquis.");
     } else {
       state.draftAssignments = {};
-      showToast("Mode esborrany desactivat.");
+      showToast("Simulació desactivada. Es mantenen les assignacions confirmades.");
     }
     persist();
     render();
@@ -417,14 +461,7 @@ function bindEvents() {
   els.discardDraft.addEventListener("click", discardDraftAssignments);
 
   document.querySelector("#autoAssign").addEventListener("click", () => {
-    const result = autoAssign();
-    persist();
-    render();
-    showToast(
-      state.draftMode
-        ? `Esborrany optimitzat: ${result.assigned} serveis, ${Math.round(result.score)} punts.`
-        : `Assignacio optima: ${result.assigned} serveis, ${Math.round(result.score)} punts.`,
-    );
+    previewAutoAssignment();
   });
 
   document.querySelector("#clearAssignments").addEventListener("click", () => {
@@ -438,7 +475,7 @@ function bindEvents() {
     }
     persist();
     render();
-    showToast(state.draftMode ? "Esborrany netejat." : "Assignacions netejades.");
+    showToast(state.draftMode ? "Propostes de simulació netejades." : "Assignacions netejades.");
   });
 
   document.querySelector("#resetData").addEventListener("click", () => {
@@ -449,6 +486,11 @@ function bindEvents() {
     state.draftMode = false;
     state.developerMode = false;
     state.draftAssignments = {};
+    state.clientStatusFilter = "active";
+    state.workerStatusFilter = "active";
+    state.selectedClient = "";
+    state.selectedWorkerId = "";
+    state.clientStatuses = {};
     els.weekStart.value = state.weekStart;
     els.draftMode.checked = false;
     els.developerMode.checked = false;
@@ -460,19 +502,53 @@ function bindEvents() {
 
   els.serviceForm.addEventListener("submit", addService);
   els.serviceForm.addEventListener("input", updateWeeklyPreview);
+  els.serviceForm.elements.client.addEventListener("input", () => {
+    if (!els.clientProfileForm.elements.client.value || !els.clientProfileForm.dataset.editingClient) {
+      els.clientProfileForm.elements.client.value = els.serviceForm.elements.client.value;
+    }
+  });
   els.serviceForm.addEventListener("change", updateWeeklyPreview);
+  els.serviceCancelEdit.addEventListener("click", closeClientEditor);
+  els.newClient.addEventListener("click", () => openClientEditor());
+  document.querySelectorAll("[data-client-status-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.clientStatusFilter = button.dataset.clientStatusFilter;
+      state.selectedClient = "";
+      closeClientEditor(false);
+      persist();
+      render();
+    });
+  });
   els.clientProfileForm.addEventListener("submit", saveClientProfile);
+  els.clientProfileCancelEdit.addEventListener("click", closeClientEditor);
+  els.newWorker.addEventListener("click", () => openWorkerEditor());
   els.workerForm.addEventListener("submit", addWorker);
   els.workerCancelEdit.addEventListener("click", resetWorkerForm);
+  document.querySelectorAll("[data-worker-status-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.workerStatusFilter = button.dataset.workerStatusFilter;
+      state.selectedWorkerId = "";
+      resetWorkerForm(false);
+      persist();
+      render();
+    });
+  });
   els.clientVacationForm.addEventListener("submit", addClientVacation);
   els.workerVacationForm.addEventListener("submit", addWorkerVacation);
   els.workerVacationForm.elements.indefinite.addEventListener("change", updateWorkerIndefiniteControl);
   els.calendarModalClose.addEventListener("click", closeCalendarDayModal);
+  els.autoAssignModalClose.addEventListener("click", discardAutoAssignmentPreview);
+  els.autoAssignDiscard.addEventListener("click", discardAutoAssignmentPreview);
+  els.autoAssignConfirm.addEventListener("click", confirmAutoAssignmentPreview);
+  els.autoAssignModal.addEventListener("click", (event) => {
+    if (event.target === els.autoAssignModal) discardAutoAssignmentPreview();
+  });
   els.calendarDayModal.addEventListener("click", (event) => {
     if (event.target === els.calendarDayModal) closeCalendarDayModal();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !els.calendarDayModal.hidden) closeCalendarDayModal();
+    if (event.key === "Escape" && !els.autoAssignModal.hidden) discardAutoAssignmentPreview();
   });
 }
 
@@ -491,8 +567,10 @@ function switchView(viewId, updateHash = true) {
     clients: "Clients i serveis",
     workers: "Treballadors i disponibilitat",
     vacations: "Calendari de vacances",
+    options: "Opcions",
   };
   els.viewTitle.textContent = titles[viewId];
+  renderSimulationContext();
   if (updateHash) {
     history.replaceState(null, "", `#${viewId}`);
     window.scrollTo(0, 0);
@@ -503,13 +581,13 @@ function render() {
   const analysis = analyzeSchedule();
   renderAssignmentControls();
   renderFilterButtons();
+  renderSimulationContext();
   renderMetrics(analysis);
   renderDashboard(analysis);
+  renderCoordinationCenter();
   renderPlanner(analysis);
   renderYearCalendar();
-  renderServices(analysis);
-  renderClientProfiles();
-  renderServiceHistory();
+  renderClientManagement(analysis);
   renderWorkers(analysis);
   renderVacations();
 }
@@ -518,26 +596,34 @@ function renderAssignmentControls() {
   const current = scoreCurrentAssignment(true);
   const confirmed = scoreCurrentAssignment(false);
   const changes = draftChangeCount();
+  const optimization = getAutoAssignmentPreview();
   els.draftMode.checked = Boolean(state.draftMode);
   els.developerMode.checked = Boolean(state.developerMode);
   els.assignmentScore.textContent = `Punts: ${Math.round(current.score)} · ${current.label}`;
-  els.confirmDraft.classList.toggle("is-hidden", !state.draftMode);
-  els.discardDraft.classList.toggle("is-hidden", !state.draftMode);
+  document.querySelector("#draftModeControl")?.classList.toggle("is-active", state.draftMode);
+  document.querySelector("#autoAssign").disabled = !optimization.changes.length;
+  document.querySelector("#autoAssign").title = optimization.changes.length
+    ? `${optimization.changes.length} canvis possibles`
+    : "No hi ha cap optimització possible per a aquesta setmana.";
   els.confirmDraft.disabled = !changes;
   els.discardDraft.disabled = !changes;
 
   if (state.developerMode) {
     const delta = Math.round(current.score - confirmed.score);
-    els.draftScorePreview.classList.remove("is-hidden");
     els.draftScorePreview.textContent = state.draftMode
-      ? `Vista desenvolupador: esborrany ${Math.round(current.score)} punts · confirmat ${Math.round(confirmed.score)} punts · diferencia ${delta >= 0 ? "+" : ""}${delta} · ${changes} canvis pendents.`
+      ? `Vista desenvolupador: simulació ${Math.round(current.score)} punts · confirmat ${Math.round(confirmed.score)} punts · diferencia ${delta >= 0 ? "+" : ""}${delta} · ${changes} canvis pendents.`
       : `Vista desenvolupador: assignacio confirmada ${Math.round(confirmed.score)} punts · ${confirmed.label}.`;
+  } else if (state.draftMode) {
+    els.draftScorePreview.textContent = changes
+      ? `Simulació activa: ${changes} canvis d'assignació pendents. Pots aplicar-los o descartar-los sense tocar clients ni treballadors.`
+      : "Simulació activa: prova reassignacions o optimitza la setmana sense canviar encara la planificació confirmada.";
   } else {
-    els.draftScorePreview.classList.add("is-hidden");
-    els.draftScorePreview.textContent = "";
+    els.draftScorePreview.textContent =
+      "La simulació només prova assignacions de serveis. Les edicions de clients i treballadors es guarden o descarten des dels seus formularis.";
   }
 
   renderDraftComparison();
+  renderSimulationContext();
 }
 
 function renderDraftComparison() {
@@ -563,7 +649,7 @@ function renderDraftComparison() {
           `,
         )
         .join("")
-    : `<p class="empty-state">No hi ha canvis pendents a l'esborrany.</p>`;
+    : `<p class="empty-state">No hi ha canvis pendents a la simulació.</p>`;
 }
 
 function draftComparisonRows() {
@@ -581,7 +667,7 @@ function draftComparisonRows() {
         confirmedName: confirmedWorker?.name || "Sense assignar",
         draftName: draftWorker?.name || "Sense assignar",
         delta: draftScore - confirmedScore,
-        reason: draftWorker ? mainScoreReason(draftWorker, service) : "Servei pendent en l'esborrany",
+        reason: draftWorker ? mainScoreReason(draftWorker, service) : "Servei pendent en la simulació",
       };
     });
 }
@@ -593,9 +679,93 @@ function assignmentSingleScore(service, worker) {
 }
 
 function renderFilterButtons() {
-  document.querySelectorAll(".filter-button").forEach((button) => {
+  document.querySelectorAll("[data-filter]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.filter === state.filter);
   });
+}
+
+function renderCoordinationCenter() {
+  const confirmed = scoreCurrentAssignment(false);
+  const proposal = scoreCurrentAssignment(true);
+  const rows = coordinationAssignmentRows();
+  const changes = rows.filter((row) => row.changed);
+  const openNeeds = rows.filter((row) => !row.proposedWorkerId).length;
+  const delta = Math.round(proposal.score - confirmed.score);
+
+  els.coordinationMode.textContent = state.draftMode ? "Simulació activa" : "Planificació confirmada";
+  els.coordinationMode.className = `pill ${state.draftMode ? "warning" : "success"}`;
+  els.coordinationSummary.innerHTML = `
+    <div class="coordination-card">
+      <strong>${Math.round(confirmed.score)}</strong>
+      <span class="meta">Punts assignació actual · ${confirmed.label}</span>
+    </div>
+    <div class="coordination-card">
+      <strong>${Math.round(proposal.score)}</strong>
+      <span class="meta">${state.draftMode ? "Punts assignació provisional" : "Sense simulació activa"} · ${proposal.label}</span>
+    </div>
+    <div class="coordination-card">
+      <strong>${delta >= 0 ? "+" : ""}${delta}</strong>
+      <span class="meta">${changes.length} canvis proposats · ${openNeeds} necessitats sense proposta</span>
+    </div>
+  `;
+  els.coordinationAssignments.innerHTML = rows.length
+    ? rows
+        .map((row) => `
+          <div class="assignment-preview-row ${row.changed ? "" : "is-unchanged"}">
+            <div>
+              <strong>${escapeHtml(row.service.client)}</strong>
+              <p class="meta">${serviceMeta(row.service)}</p>
+            </div>
+            <div>
+              <span class="meta">Actual</span>
+              <strong>${escapeHtml(row.confirmedName)}</strong>
+              <p class="meta">${Math.round(row.confirmedScore)} punts</p>
+            </div>
+            <div>
+              <span class="meta">Provisional</span>
+              <strong>${escapeHtml(row.proposedName)}</strong>
+              <p class="meta">${Math.round(row.proposedScore)} punts</p>
+            </div>
+            <div>
+              <span class="pill ${row.delta >= 0 ? "success" : "danger"}">${row.delta >= 0 ? "+" : ""}${Math.round(row.delta)}</span>
+              <p class="meta">${row.changed ? "canvi" : "sense canvi"}</p>
+            </div>
+          </div>
+        `)
+        .join("")
+    : `<p class="empty-state">No hi ha serveis actius aquesta setmana.</p>`;
+}
+
+function coordinationAssignmentRows(assignments = null, useDraftBaseline = false) {
+  return assignmentOrder(requiredServices().map((service) => withEffectiveAssignment(service, false))).map((service) => {
+    const baselineWorkerId = useDraftBaseline ? effectiveWorkerId(service, true) : service.workerId || "";
+    const baselineService = { ...service, workerId: baselineWorkerId };
+    const proposedWorkerId = assignments ? assignments[service.id] || "" : effectiveWorkerId(service, true);
+    const confirmedWorker = getWorker(baselineWorkerId);
+    const proposedWorker = getWorker(proposedWorkerId);
+    const confirmedScore = assignmentSingleScore(baselineService, confirmedWorker);
+    const proposedScore = assignmentSingleScore({ ...service, workerId: proposedWorkerId }, proposedWorker);
+    return {
+      service,
+      confirmedWorkerId: baselineWorkerId,
+      proposedWorkerId,
+      confirmedName: confirmedWorker?.name || "Sense assignar",
+      proposedName: proposedWorker?.name || "Sense assignar",
+      confirmedScore,
+      proposedScore,
+      delta: proposedScore - confirmedScore,
+      changed: baselineWorkerId !== proposedWorkerId,
+    };
+  });
+}
+
+function renderSimulationContext() {
+  const planningViews = new Set(["dashboard", "planner", "calendar"]);
+  const currentView = document.querySelector(".view.is-active")?.id || "dashboard";
+  const visible = planningViews.has(currentView);
+  document.querySelector("#draftModeControl")?.classList.toggle("is-hidden", !visible);
+  els.confirmDraft.classList.toggle("is-hidden", !visible || !state.draftMode);
+  els.discardDraft.classList.toggle("is-hidden", !visible || !state.draftMode);
 }
 
 function renderMetrics(analysis) {
@@ -740,7 +910,7 @@ function bindDashboardDayActions(date) {
       setServiceAssignment(service, select.value);
       persist();
       render();
-      showToast(state.draftMode ? "Assignacio afegida a l'esborrany." : "Assignacio del dia actualitzada.");
+        showToast(state.draftMode ? "Assignació afegida a la simulació." : "Assignacio del dia actualitzada.");
     });
   });
 
@@ -941,8 +1111,10 @@ function renderDashboardIncident(incident) {
 }
 
 function renderPlanner(analysis) {
+  renderPlannerWeekNavigation();
   const query = normalizeText(state.plannerSearch || "");
   const filteredServices = orderedServices(state.services.map((service) => withEffectiveAssignment(service))).filter((service) => {
+    if (!isClientActive(service.client)) return false;
     const issues = analysis.byService.get(service.id) || [];
     const paused = isClientOnVacation(service);
     const searchable = normalizeText(`${service.client} ${service.zone} ${service.day} ${service.priority}`);
@@ -1003,6 +1175,28 @@ function renderPlanner(analysis) {
   });
 
   bindBestButtons();
+}
+
+function renderPlannerWeekNavigation() {
+  const start = new Date(`${state.weekStart}T00:00:00`);
+  const end = addDays(start, 4);
+  const currentMonday = formatDateInput(getMonday(new Date()));
+  els.plannerWeekTitle.textContent = state.weekStart === currentMonday ? "Aquesta setmana" : "Setmana planificada";
+  els.plannerWeekRange.textContent = `${formatDisplayDate(state.weekStart)} - ${formatDisplayDate(formatDateInput(end))}`;
+  els.plannerCurrentWeek.disabled = state.weekStart === currentMonday;
+}
+
+function shiftPlannerWeek(days) {
+  setPlannerWeek(formatDateInput(addDays(new Date(`${state.weekStart}T00:00:00`), days)));
+}
+
+function setPlannerWeek(weekStart) {
+  state.weekStart = weekStart;
+  els.weekStart.value = weekStart;
+  state.dashboardDate = weekStart;
+  els.dashboardDate.value = weekStart;
+  persist();
+  render();
 }
 
 function renderShiftCard(service, analysis) {
@@ -1356,12 +1550,309 @@ function bindCalendarModalAssignments(date) {
       persist();
       render();
       openCalendarDayModal(date);
-      showToast(state.draftMode ? "Assignacio afegida a l'esborrany." : "Assignacio actualitzada.");
+      showToast(state.draftMode ? "Assignació afegida a la simulació." : "Assignacio actualitzada.");
     });
   });
   document.querySelectorAll("[data-complete-service]").forEach((button) => {
     button.addEventListener("click", () => completeService(button.dataset.completeService, button.dataset.completeDate));
   });
+}
+
+function renderClientManagement(analysis = analyzeSchedule()) {
+  fillClientProfileControls();
+  const clients = getClientSummaries();
+  const visibleClients = clients.filter((client) => matchesClientStatusFilter(client.status));
+  const selectedClient = state.selectedClient && clients.some((client) => client.name === state.selectedClient) ? state.selectedClient : "";
+  const activeCount = clients.filter((client) => client.status === "Actiu").length;
+  const selectedServices = selectedClient ? state.services.filter((service) => service.client === selectedClient) : [];
+  const selectedRecurrences = selectedClient ? getRecurrenceSummaries().filter((recurrence) => recurrence.client === selectedClient) : [];
+
+  els.clientServiceCount.textContent = `${activeCount}/${clients.length} actius`;
+  document.querySelectorAll("[data-client-status-filter]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.clientStatusFilter === state.clientStatusFilter);
+  });
+
+  els.clientOverview.innerHTML = visibleClients.length
+    ? visibleClients
+        .map((client) => renderClientOverviewRow(client))
+        .join("")
+    : `<p class="empty-state">No hi ha clients en aquest filtre.</p>`;
+
+  document.querySelectorAll(".client-detail").forEach((panel) => panel.classList.toggle("is-hidden", !selectedClient));
+  els.clientDetailPanel.classList.toggle("is-hidden", !selectedClient);
+
+  if (selectedClient) {
+    const summary = clients.find((client) => client.name === selectedClient);
+    els.clientDetailTitle.textContent = selectedClient;
+    els.clientDetailStatus.textContent = summary.status;
+    els.clientDetailStatus.className = `pill ${summary.status === "Baixa" ? "danger" : "success"}`;
+    els.clientDetailActions.innerHTML = renderClientActionButtons(selectedClient, summary.status);
+    els.clientDetailSummary.innerHTML = `
+      <div class="summary-item"><strong>${summary.serviceCount}</strong><span class="meta">Serveis recurrents</span></div>
+      <div class="summary-item"><strong>${formatHours(summary.weeklyHours)}</strong><span class="meta">Hores setmanals</span></div>
+      <div class="summary-item"><strong>${escapeHtml(summary.zones.join(", ") || "Sense zona")}</strong><span class="meta">Zones</span></div>
+      <div class="summary-item"><strong>${summary.profile ? "Si" : "No"}</strong><span class="meta">Fitxa operativa</span></div>
+    `;
+  }
+
+  els.clientProfileCount.textContent = selectedClient ? "1 client" : "Cap client";
+  els.clientRecurrenceCount.textContent = selectedClient ? `${selectedRecurrences.length} recurrències` : "Selecciona client";
+  els.generatedServiceCount.textContent = selectedClient ? `${selectedServices.length} serveis` : "Selecciona client";
+  els.recurrenceTable.innerHTML = renderRecurrenceRows(selectedRecurrences, selectedClient);
+  els.clientProfileTable.innerHTML = selectedClient ? renderClientProfileRow(selectedClient) : `<p class="empty-state">Selecciona un client.</p>`;
+  els.serviceTable.innerHTML = renderClientServiceRows(selectedServices, selectedClient, analysis);
+  renderServiceHistory(selectedClient);
+
+  bindClientOverviewActions();
+  bindClientDetailTables();
+}
+
+function renderClientOverviewRow(client) {
+  return `
+    <div class="table-row ${client.status === "Baixa" ? "is-inactive" : ""}">
+      <div>
+        <strong>${escapeHtml(client.name)}</strong>
+        <p class="meta">${client.serviceCount} serveis recurrents · ${formatHours(client.weeklyHours)}/setmana</p>
+      </div>
+      <div class="meta">${escapeHtml(client.zones.join(", ") || "Sense zona")} · ${client.profile ? "fitxa completa" : "sense fitxa"}</div>
+      <div><span class="pill ${client.status === "Baixa" ? "danger" : "success"}">${client.status}</span></div>
+      <div class="mini-actions">
+        <button class="icon-button" data-view-client="${escapeHtml(client.name)}" type="button">Detall</button>
+        ${renderClientActionButtons(client.name, client.status)}
+      </div>
+    </div>
+  `;
+}
+
+function renderClientActionButtons(client, status) {
+  return `
+    <button class="icon-button" data-edit-client="${escapeHtml(client)}" type="button">Editar</button>
+    ${
+      status === "Actiu"
+        ? `<button class="icon-button danger-button" data-deactivate-client="${escapeHtml(client)}" type="button">Donar de baixa</button>`
+        : `<button class="icon-button" data-activate-client="${escapeHtml(client)}" type="button">Donar d'alta</button>`
+    }
+  `;
+}
+
+function renderRecurrenceRows(recurrences, selectedClient) {
+  if (!selectedClient) return `<p class="empty-state">Selecciona un client.</p>`;
+  return recurrences.length
+    ? recurrences
+        .map(
+          (recurrence) => `
+            <div class="recurrence-row">
+              <div>
+                <strong>${escapeHtml(recurrence.client)}</strong>
+                <p class="meta">${escapeHtml(recurrence.zone)} · ${recurrence.priority}</p>
+              </div>
+              <div class="meta">${escapeHtml(formatDayList(recurrence.days))} · ${recurrence.start}-${recurrence.end} · ${formatHours(recurrence.hoursPerVisit)} per visita</div>
+              <div><span class="pill">${formatHours(recurrence.weeklyHours)}/setmana</span></div>
+              <button class="icon-button danger-button" data-delete-recurrence="${recurrence.id}" type="button" title="Eliminar recurrencia">Eliminar</button>
+            </div>
+          `,
+        )
+        .join("")
+    : `<p class="empty-state">Aquest client no te serveis recurrents.</p>`;
+}
+
+function renderClientProfileRow(client) {
+  const profile = state.clientProfiles[client];
+  if (!profile) return `<p class="empty-state">Aquest client encara no te fitxa operativa.</p>`;
+  const preferred = getWorker(profile.preferredWorkerId)?.name || "Sense preferit";
+  const vetoed = (profile.vetoedWorkers || []).map((id) => getWorker(id)?.name).filter(Boolean).join(", ") || "Cap veto";
+  const continuity = clientContinuityLabel(profile.continuityPolicy);
+  return `
+    <div class="table-row">
+      <div>
+        <strong>${escapeHtml(client)}</strong>
+        <p class="meta">${escapeHtml(profile.notes || "Sense notes")}</p>
+      </div>
+      <div class="meta">Preferit: ${escapeHtml(preferred)} · Vetats: ${escapeHtml(vetoed)} · ${escapeHtml(continuity)}</div>
+      <div><span class="pill">Exigencia ${profile.qualityLevel || 3}/5</span></div>
+      <button class="icon-button danger-button" data-delete-client-profile="${escapeHtml(client)}" type="button">Eliminar</button>
+    </div>
+  `;
+}
+
+function renderClientServiceRows(services, selectedClient, analysis) {
+  if (!selectedClient) return `<p class="empty-state">Selecciona un client.</p>`;
+  return services.length
+    ? orderedServices(services)
+        .map((service) => {
+          const worker = getWorker(service.workerId);
+          const issues = analysis.byService.get(service.id) || [];
+          return `
+            <div class="table-row">
+              <div>
+                <strong>${escapeHtml(service.client)}</strong>
+                <p class="meta">${service.zone} · ${service.priority}</p>
+              </div>
+              <div class="meta">${service.day} · ${service.start}-${service.end} · ${formatHours(duration(service))}</div>
+              <div>
+                <span class="pill ${issues.length ? "danger" : service.workerId ? "success" : ""}">${worker ? worker.name : "Pendent"}</span>
+                ${service.locked ? `<span class="pill warning">Fixat</span>` : ""}
+              </div>
+              <div class="mini-actions">
+                <button class="icon-button" data-lock-service="${service.id}" type="button" title="Fixar assignacio">${service.locked ? "Alliberar" : "Fixar"}</button>
+                <button class="icon-button danger-button" data-delete-service="${service.id}" type="button" title="Eliminar servei">Eliminar</button>
+              </div>
+            </div>
+          `;
+        })
+        .join("")
+    : `<p class="empty-state">Aquest client no te serveis generats.</p>`;
+}
+
+function bindClientOverviewActions() {
+  document.querySelectorAll("[data-view-client]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedClient = button.dataset.viewClient;
+      closeClientEditor(false);
+      persist();
+      render();
+    });
+  });
+  document.querySelectorAll("[data-edit-client]").forEach((button) => {
+    button.addEventListener("click", () => openClientEditor(button.dataset.editClient));
+  });
+  document.querySelectorAll("[data-deactivate-client]").forEach((button) => {
+    button.addEventListener("click", () => setClientStatus(button.dataset.deactivateClient, "Baixa"));
+  });
+  document.querySelectorAll("[data-activate-client]").forEach((button) => {
+    button.addEventListener("click", () => setClientStatus(button.dataset.activateClient, "Actiu"));
+  });
+}
+
+function bindClientDetailTables() {
+  document.querySelectorAll("[data-delete-recurrence]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.services = state.services.filter((service) => recurrenceKey(service) !== button.dataset.deleteRecurrence);
+      removeDraftAssignmentsForMissingServices();
+      persist();
+      render();
+      showToast("Recurrencia eliminada.");
+    });
+  });
+
+  document.querySelectorAll("#serviceTable [data-delete-service]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.services = state.services.filter((service) => service.id !== button.dataset.deleteService);
+      removeDraftAssignmentsForMissingServices();
+      persist();
+      render();
+      showToast("Servei eliminat.");
+    });
+  });
+
+  document.querySelectorAll("#serviceTable [data-lock-service]").forEach((button) => {
+    button.addEventListener("click", () => toggleServiceLock(button.dataset.lockService));
+  });
+
+  document.querySelectorAll("[data-delete-client-profile]").forEach((button) => {
+    button.addEventListener("click", () => {
+      delete state.clientProfiles[button.dataset.deleteClientProfile];
+      persist();
+      render();
+      showToast("Fitxa de client eliminada.");
+    });
+  });
+
+  document.querySelectorAll("[data-delete-service-log]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.serviceLogs = state.serviceLogs.filter((log) => log.id !== button.dataset.deleteServiceLog);
+      persist();
+      render();
+      showToast("Registre eliminat.");
+    });
+  });
+}
+
+function openClientEditor(client = "") {
+  const recurrences = client ? getRecurrenceSummaries().filter((recurrence) => recurrence.client === client) : [];
+  const recurrence = recurrences[0];
+  const profile = clientProfileFor(client);
+  document.querySelectorAll(".client-editor").forEach((panel) => panel.classList.remove("is-hidden"));
+  els.serviceForm.dataset.editingClient = client;
+  els.serviceForm.dataset.editingRecurrence = recurrence?.id || "";
+  els.clientProfileForm.dataset.editingClient = client;
+  els.serviceSubmitButton.textContent = recurrence ? "Desar canvis" : "Desar recurrencia";
+  els.clientProfileSubmitButton.textContent = client ? "Desar fitxa" : "Desar fitxa";
+
+  resetServiceFormValues();
+  if (client) {
+    els.serviceForm.elements.client.value = client;
+    els.clientProfileForm.elements.client.value = client;
+  }
+  if (recurrence) fillServiceFormFromRecurrence(recurrence);
+
+  els.clientProfileForm.elements.status.value = clientStatus(client);
+  els.clientProfileForm.elements.preferredWorkerId.value = profile.preferredWorkerId || "";
+  [...els.clientProfileForm.elements.vetoedWorkers.options].forEach((option) => {
+    option.selected = (profile.vetoedWorkers || []).includes(option.value);
+  });
+  els.clientProfileForm.elements.preferredShift.value = profile.preferredShift || "Indiferent";
+  els.clientProfileForm.elements.qualityLevel.value = profile.qualityLevel || 3;
+  els.clientProfileForm.elements.continuityPolicy.value = profile.continuityPolicy || "flexible";
+  els.clientProfileForm.elements.changePolicy.value = profile.changePolicy || "free";
+  els.clientProfileForm.elements.notes.value = profile.notes || "";
+  updateWeeklyPreview();
+  els.serviceForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeClientEditor(scroll = true) {
+  document.querySelectorAll(".client-editor").forEach((panel) => panel.classList.add("is-hidden"));
+  delete els.serviceForm.dataset.editingClient;
+  delete els.serviceForm.dataset.editingRecurrence;
+  delete els.clientProfileForm.dataset.editingClient;
+  resetServiceFormValues();
+  resetClientProfileFormValues();
+  if (scroll) document.querySelector("#clients .panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetServiceFormValues() {
+  els.serviceForm.reset();
+  els.serviceForm.elements.start.value = "09:00";
+  els.serviceForm.elements.durationHours.value = "2";
+  els.serviceForm.elements.activeFrom.value = state.weekStart;
+  setCheckedValues(els.serviceForm, "days", []);
+  updateWeeklyPreview();
+}
+
+function resetClientProfileFormValues() {
+  els.clientProfileForm.reset();
+  els.clientProfileForm.elements.status.value = "Actiu";
+  els.clientProfileForm.elements.preferredShift.value = "Indiferent";
+  els.clientProfileForm.elements.qualityLevel.value = "3";
+  els.clientProfileForm.elements.continuityPolicy.value = "flexible";
+  els.clientProfileForm.elements.changePolicy.value = "free";
+}
+
+function fillServiceFormFromRecurrence(recurrence) {
+  const fields = els.serviceForm.elements;
+  fields.client.value = recurrence.client;
+  fields.zone.value = recurrence.zone;
+  fields.recurrenceType.value = recurrence.recurrenceType || "weekly";
+  fields.activeFrom.value = recurrence.activeFrom || state.weekStart;
+  fields.activeTo.value = recurrence.activeTo || "";
+  fields.start.value = recurrence.start;
+  fields.durationHours.value = recurrence.hoursPerVisit;
+  fields.priority.value = recurrence.priority;
+  fields.requirements.value = recurrence.requirements || "";
+  setCheckedValues(els.serviceForm, "days", recurrence.days);
+}
+
+function setClientStatus(client, status) {
+  if (!client) return;
+  state.clientStatuses[client] = status;
+  if (status === "Baixa") {
+    state.services = state.services.map((service) => (service.client === client ? { ...service, workerId: "" } : service));
+    removeDraftAssignmentsForMissingServices();
+  }
+  state.selectedClient = client;
+  persist();
+  render();
+  showToast(status === "Baixa" ? `${client} donat de baixa.` : `${client} donat d'alta.`);
 }
 
 function renderServices() {
@@ -1473,9 +1964,10 @@ function renderClientProfiles() {
   });
 }
 
-function renderServiceHistory() {
-  const logs = [...(state.serviceLogs || [])].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
-  els.serviceHistoryCount.textContent = `${state.serviceLogs.length} registres`;
+function renderServiceHistory(client = "") {
+  const visibleLogs = client ? (state.serviceLogs || []).filter((log) => log.client === client) : state.serviceLogs || [];
+  const logs = [...visibleLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
+  els.serviceHistoryCount.textContent = `${visibleLogs.length} registres`;
   els.serviceHistoryTable.innerHTML = logs.length
     ? logs
         .map((log) => `
@@ -1504,10 +1996,16 @@ function renderServiceHistory() {
 
 function renderWorkers(analysis) {
   const activeWorkers = state.workers.filter((worker) => isWorkerActive(worker)).length;
+  const visibleWorkers = state.workers.filter((worker) => matchesWorkerStatusFilter(worker));
+  const selectedWorker = getWorker(state.selectedWorkerId);
   els.workerCount.textContent = `${activeWorkers}/${state.workers.length} actius`;
+  document.querySelectorAll("[data-worker-status-filter]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.workerStatusFilter === state.workerStatusFilter);
+  });
   renderWorkerLoad(analysis);
-  els.workerTable.innerHTML = state.workers.length
-    ? state.workers
+  renderWorkerDetail(selectedWorker, analysis);
+  els.workerTable.innerHTML = visibleWorkers.length
+    ? visibleWorkers
         .map((worker) => {
           const assigned = analysis.hoursByWorker.get(worker.id) || 0;
           const load = worker.maxHours ? Math.min(100, Math.round((assigned / worker.maxHours) * 100)) : 0;
@@ -1538,8 +2036,9 @@ function renderWorkers(analysis) {
                 <p class="meta">${formatCurrency(worker.hourlyCost)}/h · ${worker.experience}/${worker.quality}/${worker.reliability} · ${worker.acceptsOvertime ? "vol extres" : "sense extres"}</p>
               </div>
               <div class="worker-actions">
+                <button class="icon-button" data-view-worker="${worker.id}" type="button" title="Veure detall">Detall</button>
                 <button class="icon-button" data-edit-worker="${worker.id}" type="button" title="Editar parametres">Editar</button>
-                <button class="icon-button" data-simulate-leave-worker="${worker.id}" type="button" title="Simular baixa en esborrany">Simular baixa</button>
+                <button class="icon-button" data-simulate-leave-worker="${worker.id}" type="button" title="Crear una simulació de reassignació per baixa">Simular baixa</button>
                 ${
                   isWorkerActive(worker)
                     ? `<button class="icon-button danger-button" data-leave-worker="${worker.id}" type="button" title="Marcar baixa i recalcular">Baixa + recalcular</button>`
@@ -1551,7 +2050,7 @@ function renderWorkers(analysis) {
           `;
         })
         .join("")
-    : `<p class="empty-state">Encara no hi ha treballadors.</p>`;
+    : `<p class="empty-state">No hi ha treballadors en aquest filtre.</p>`;
 
   document.querySelectorAll("[data-delete-worker]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1574,6 +2073,15 @@ function renderWorkers(analysis) {
     button.addEventListener("click", () => editWorker(button.dataset.editWorker));
   });
 
+  document.querySelectorAll("[data-view-worker]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedWorkerId = button.dataset.viewWorker;
+      resetWorkerForm(false);
+      persist();
+      render();
+    });
+  });
+
   document.querySelectorAll("[data-leave-worker]").forEach((button) => {
     button.addEventListener("click", () => markWorkerOnLeaveAndRecalculate(button.dataset.leaveWorker));
   });
@@ -1588,8 +2096,9 @@ function renderWorkers(analysis) {
 }
 
 function renderWorkerLoad(analysis) {
-  els.workerLoadTable.innerHTML = state.workers.length
-    ? state.workers
+  const visibleWorkers = state.workers.filter((worker) => matchesWorkerStatusFilter(worker));
+  els.workerLoadTable.innerHTML = visibleWorkers.length
+    ? visibleWorkers
         .map((worker) => {
           const assigned = analysis.hoursByWorker.get(worker.id) || 0;
           const target = Math.max(worker.maxHours || 1, 1);
@@ -1612,6 +2121,41 @@ function renderWorkerLoad(analysis) {
         })
         .join("")
     : `<p class="empty-state">Encara no hi ha treballadors.</p>`;
+}
+
+function renderWorkerDetail(worker, analysis) {
+  els.workerDetailPanel.classList.toggle("is-hidden", !worker);
+  if (!worker) return;
+  const assigned = analysis.hoursByWorker.get(worker.id) || 0;
+  const serviceCount = requiredServices().filter((service) => withEffectiveAssignment(service).workerId === worker.id).length;
+  const statusClass = isWorkerActive(worker) ? "success" : "danger";
+  els.workerDetailTitle.textContent = worker.name;
+  els.workerDetailActions.innerHTML = `
+    <button class="icon-button" data-edit-worker="${worker.id}" type="button">Editar</button>
+    ${
+      isWorkerActive(worker)
+        ? `<button class="icon-button danger-button" data-leave-worker="${worker.id}" type="button">Donar de baixa</button>`
+        : `<button class="icon-button" data-activate-worker="${worker.id}" type="button">Donar d'alta</button>`
+    }
+  `;
+  els.workerDetailSummary.innerHTML = `
+    <div class="summary-item"><strong><span class="pill ${statusClass}">${escapeHtml(worker.status)}</span></strong><span class="meta">${escapeHtml(worker.role)} · ${escapeHtml(worker.contractType)}</span></div>
+    <div class="summary-item"><strong>${formatHours(assigned)} / ${formatHours(worker.maxHours)}</strong><span class="meta">Carrega setmanal</span></div>
+    <div class="summary-item"><strong>${serviceCount}</strong><span class="meta">Serveis actius assignats</span></div>
+    <div class="summary-item"><strong>${escapeHtml(worker.zones.join(", ") || "Sense zones")}</strong><span class="meta">Zones disponibles</span></div>
+  `;
+}
+
+function openWorkerEditor() {
+  resetWorkerForm(false);
+  els.workerForm.classList.remove("is-hidden");
+  els.workerForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function matchesWorkerStatusFilter(worker) {
+  if (state.workerStatusFilter === "all") return true;
+  if (state.workerStatusFilter === "inactive") return !isWorkerActive(worker);
+  return isWorkerActive(worker);
 }
 
 function renderVacations() {
@@ -1720,16 +2264,19 @@ function addService(event) {
   const recurrenceType = Object.hasOwn(recurrenceTypeNames, data.recurrenceType) ? data.recurrenceType : "weekly";
   const activeFrom = data.activeFrom || state.weekStart;
   const activeTo = data.activeTo || "";
+  const editingRecurrence = event.currentTarget.dataset.editingRecurrence;
+  const originalClient = event.currentTarget.dataset.editingClient;
+  const clientName = data.client.trim();
 
   if (!days.length) return showToast("Selecciona com a minim un dia recurrent.");
   if (!durationHours || durationHours <= 0) return showToast("Les hores per visita han de ser superiors a 0.");
   if (activeTo && activeTo < activeFrom) return showToast("La data final ha de ser posterior a l'inici.");
 
-  const recurringId = crypto.randomUUID();
+  const recurringId = editingRecurrence || crypto.randomUUID();
   const end = addHours(data.start, durationHours);
   const newServices = days.map((day) => ({
     id: crypto.randomUUID(),
-    client: data.client.trim(),
+    client: clientName,
     zone: data.zone,
     day,
     start: data.start,
@@ -1744,7 +2291,22 @@ function addService(event) {
     locked: false,
   }));
 
+  if (editingRecurrence) {
+    if (originalClient && originalClient !== clientName) renameClientReferences(originalClient, clientName);
+    state.services = state.services.filter((service) => recurrenceKey(service) !== editingRecurrence);
+    state.services.push(...newServices);
+    state.selectedClient = clientName;
+    if (!state.clientStatuses[clientName]) state.clientStatuses[clientName] = "Actiu";
+    closeClientEditor(false);
+    persist();
+    render();
+    showToast(`${clientName} actualitzat.`);
+    return;
+  }
+
   state.services.push(...newServices);
+  state.selectedClient = clientName;
+  if (!state.clientStatuses[clientName]) state.clientStatuses[clientName] = "Actiu";
   event.currentTarget.reset();
   event.currentTarget.elements.start.value = "09:00";
   event.currentTarget.elements.durationHours.value = "2";
@@ -1752,14 +2314,19 @@ function addService(event) {
   updateWeeklyPreview();
   persist();
   render();
-  showToast(`${data.client.trim()} afegit: ${recurrenceTypeNames[recurrenceType]} · ${formatHours(days.length * durationHours)} per cicle.`);
+  showToast(`${clientName} afegit: ${recurrenceTypeNames[recurrenceType]} · ${formatHours(days.length * durationHours)} per cicle.`);
 }
 
 function saveClientProfile(event) {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget));
   const vetoedWorkers = [...els.clientProfileForm.elements.vetoedWorkers.selectedOptions].map((option) => option.value);
-  state.clientProfiles[data.client] = {
+  const originalClient = event.currentTarget.dataset.editingClient;
+  const clientName = data.client.trim();
+  if (!clientName) return showToast("Introdueix el nom del client.");
+  if (originalClient && originalClient !== clientName) renameClientReferences(originalClient, clientName);
+  state.clientStatuses[clientName] = data.status === "Baixa" ? "Baixa" : "Actiu";
+  state.clientProfiles[clientName] = {
     preferredWorkerId: data.preferredWorkerId || "",
     vetoedWorkers,
     preferredShift: data.preferredShift || "Indiferent",
@@ -1768,9 +2335,14 @@ function saveClientProfile(event) {
     changePolicy: data.changePolicy || "free",
     notes: data.notes.trim(),
   };
+  if (state.clientStatuses[clientName] === "Baixa") {
+    state.services = state.services.map((service) => (service.client === clientName ? { ...service, workerId: "" } : service));
+  }
+  state.selectedClient = clientName;
+  closeClientEditor(false);
   persist();
   render();
-  showToast(`Fitxa de ${data.client} guardada.`);
+  showToast(`Fitxa de ${clientName} guardada.`);
 }
 
 function addWorker(event) {
@@ -1784,6 +2356,7 @@ function addWorker(event) {
     state.workers = state.workers.map((item) =>
       item.id === editingId ? { ...worker, id: editingId, history: previous?.history || {} } : item,
     );
+    state.selectedWorkerId = editingId;
     resetWorkerForm();
     persist();
     render();
@@ -1791,7 +2364,9 @@ function addWorker(event) {
     return;
   }
 
-  state.workers.push({ ...worker, id: crypto.randomUUID(), history: {} });
+  const workerId = crypto.randomUUID();
+  state.workers.push({ ...worker, id: workerId, history: {} });
+  state.selectedWorkerId = workerId;
 
   resetWorkerForm();
   persist();
@@ -1909,6 +2484,97 @@ function autoAssign() {
   return result;
 }
 
+function getAutoAssignmentPreview() {
+  const result = findBestGlobalAssignment();
+  const rows = coordinationAssignmentRows(result.assignments, state.draftMode);
+  const changes = rows.filter((row) => row.changed);
+  return { result, rows, changes };
+}
+
+function previewAutoAssignment() {
+  const { result, rows, changes } = getAutoAssignmentPreview();
+  if (!changes.length) {
+    showToast("No hi ha cap optimització possible per a aquesta setmana.");
+    return;
+  }
+  const confirmed = scoreCurrentAssignment(state.draftMode);
+  const proposalScore = scoreAssignmentFromAssignments(result.assignments);
+  pendingAutoAssignment = { result, rows, changes, confirmed, proposalScore, targetDraftMode: state.draftMode };
+  renderAutoAssignmentModal();
+}
+
+function renderAutoAssignmentModal() {
+  if (!pendingAutoAssignment) return;
+  const { changes, confirmed, proposalScore, targetDraftMode } = pendingAutoAssignment;
+  const delta = Math.round(proposalScore.score - confirmed.score);
+  els.autoAssignModalTitle.textContent = targetDraftMode ? "Proposta per a la simulació" : "Proposta per a la planificació confirmada";
+  els.autoAssignModalSubtitle.textContent = targetDraftMode
+    ? "Si confirmes, aquests canvis quedaran com a assignació provisional dins la simulació."
+    : "Si confirmes, aquests canvis s'aplicaran directament a la planificació confirmada.";
+  els.autoAssignModalSummary.innerHTML = [
+    ["Actual", Math.round(confirmed.score), confirmed.label],
+    ["Proposta", Math.round(proposalScore.score), proposalScore.label],
+    ["Diferencia", `${delta >= 0 ? "+" : ""}${delta}`, `${changes.length} assignacions modificades`],
+    ["Coberts", proposalScore.assigned, "serveis amb treballador"],
+    ["Mode", targetDraftMode ? "Simulació" : "Confirmat", targetDraftMode ? "provisional" : "aplicació directa"],
+  ]
+    .map(([label, value, detail]) => `<span class="modal-kpi"><strong>${escapeHtml(String(value))}</strong>${escapeHtml(label)}<small>${escapeHtml(detail)}</small></span>`)
+    .join("");
+  els.autoAssignModalChanges.innerHTML = changes.length
+    ? changes
+        .map((row) => `
+          <div class="assignment-preview-row">
+            <div>
+              <strong>${escapeHtml(row.service.client)}</strong>
+              <p class="meta">${serviceMeta(row.service)}</p>
+            </div>
+            <div>
+              <span class="meta">Actual</span>
+              <strong>${escapeHtml(row.confirmedName)}</strong>
+              <p class="meta">${Math.round(row.confirmedScore)} punts</p>
+            </div>
+            <div>
+              <span class="meta">Proposta automàtica</span>
+              <strong>${escapeHtml(row.proposedName)}</strong>
+              <p class="meta">${Math.round(row.proposedScore)} punts</p>
+            </div>
+            <div>
+              <span class="pill ${row.delta >= 0 ? "success" : "danger"}">${row.delta >= 0 ? "+" : ""}${Math.round(row.delta)} punts</span>
+            </div>
+          </div>
+        `)
+        .join("")
+    : `<p class="empty-state">L'optimitzador no faria cap canvi respecte a les assignacions actuals.</p>`;
+  els.autoAssignModal.hidden = false;
+  els.autoAssignModal.setAttribute("aria-hidden", "false");
+  els.autoAssignConfirm.focus();
+}
+
+function confirmAutoAssignmentPreview() {
+  if (!pendingAutoAssignment) return;
+  const { result, targetDraftMode } = pendingAutoAssignment;
+  const previousMode = state.draftMode;
+  state.draftMode = targetDraftMode;
+  applyAssignmentResult(result);
+  state.draftMode = previousMode;
+  pendingAutoAssignment = null;
+  closeAutoAssignmentModal();
+  persist();
+  render();
+  showToast(targetDraftMode ? "Proposta aplicada a la simulació." : "Proposta automàtica aplicada a la planificació confirmada.");
+}
+
+function discardAutoAssignmentPreview() {
+  pendingAutoAssignment = null;
+  closeAutoAssignmentModal();
+  showToast("Proposta automàtica descartada.");
+}
+
+function closeAutoAssignmentModal() {
+  els.autoAssignModal.hidden = true;
+  els.autoAssignModal.setAttribute("aria-hidden", "true");
+}
+
 function applyAssignmentResult(result) {
   if (state.draftMode) {
     ensureDraftAssignments();
@@ -1946,7 +2612,7 @@ function optimizeCalendarRange() {
 
   persist();
   render();
-  showToast(state.draftMode ? `Rang afegit a l'esborrany: ${assigned}/${serviceIds.length} serveis.` : `Rang optimitzat: ${assigned}/${serviceIds.length} serveis amb candidat.`);
+  showToast(state.draftMode ? `Rang afegit a la simulació: ${assigned}/${serviceIds.length} serveis.` : `Rang optimitzat: ${assigned}/${serviceIds.length} serveis amb candidat.`);
 }
 
 function completeService(serviceId, date, source = "modal") {
@@ -1982,6 +2648,7 @@ function markWorkerOnLeaveAndRecalculate(workerId) {
   const worker = getWorker(workerId);
   if (!worker) return;
   worker.status = "Baixa";
+  state.selectedWorkerId = workerId;
   state.services = state.services.map((service) => (service.workerId === workerId ? { ...service, workerId: "" } : service));
   if (state.draftMode) {
     ensureDraftAssignments();
@@ -2059,20 +2726,21 @@ function confirmDraftAssignments() {
   state.draftAssignments = {};
   persist();
   render();
-  showToast("Esborrany confirmat. Assignacions aplicades.");
+  showToast("Simulació aplicada. Les assignacions proposades passen a ser la planificació confirmada.");
 }
 
 function discardDraftAssignments() {
   state.draftAssignments = {};
   persist();
   render();
-  showToast("Esborrany descartat.");
+  showToast("Simulació descartada. Es mantenen les assignacions confirmades.");
 }
 
 function reactivateWorker(workerId) {
   const worker = getWorker(workerId);
   if (!worker) return;
   worker.status = "Actiu";
+  state.selectedWorkerId = workerId;
   persist();
   render();
   showToast(`${worker.name} reactivat. Pots optimitzar la setmana de nou.`);
@@ -2091,16 +2759,17 @@ function simulateWorkerLeave(workerId) {
   delete state.simulatedUnavailableWorkerId;
   persist();
   render();
-  showToast(`Simulacio de baixa de ${worker.name}: ${result.assigned}/${requiredServices().length} serveis coberts en esborrany.`);
+  showToast(`Simulació de baixa de ${worker.name}: ${result.assigned}/${requiredServices().length} serveis coberts en proposta.`);
 }
 
 function editWorker(workerId) {
   const worker = getWorker(workerId);
   if (!worker) return;
+  els.workerForm.classList.remove("is-hidden");
   els.workerForm.dataset.editingWorkerId = worker.id;
+  state.selectedWorkerId = worker.id;
   els.workerFormTitle.textContent = `Editar ${worker.name}`;
   els.workerSubmitButton.textContent = "Guardar canvis";
-  els.workerCancelEdit.classList.remove("is-hidden");
 
   const fields = els.workerForm.elements;
   fields.name.value = worker.name;
@@ -2123,15 +2792,16 @@ function editWorker(workerId) {
   setCheckedValues(els.workerForm, "workerSkills", worker.skills);
   setCheckedValues(els.workerForm, "workerServiceTypes", worker.serviceTypes);
   setWorkerAvailability(worker.availability);
+  persist();
   els.workerForm.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function resetWorkerForm() {
+function resetWorkerForm(scroll = true) {
   delete els.workerForm.dataset.editingWorkerId;
   els.workerForm.reset();
   els.workerFormTitle.textContent = "Nou treballador";
-  els.workerSubmitButton.textContent = "Afegir treballador";
-  els.workerCancelEdit.classList.add("is-hidden");
+  els.workerSubmitButton.textContent = "Desar treballador";
+  els.workerForm.classList.add("is-hidden");
   els.workerForm.elements.maxHours.value = 30;
   els.workerForm.elements.maxDailyHours.value = 8;
   els.workerForm.elements.acceptsOvertime.checked = false;
@@ -2143,6 +2813,7 @@ function resetWorkerForm() {
   setCheckedValues(els.workerForm, "workerSkills", []);
   setCheckedValues(els.workerForm, "workerServiceTypes", []);
   setWorkerAvailability({});
+  if (scroll) document.querySelector("#workers .panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function assignBestService(serviceId) {
@@ -2152,7 +2823,7 @@ function assignBestService(serviceId) {
   setServiceAssignment(service, candidate.id);
   persist();
   render();
-  showToast(state.draftMode ? `${candidate.name} afegit a l'esborrany de ${service.client}.` : `${candidate.name} assignat a ${service.client}.`);
+  showToast(state.draftMode ? `${candidate.name} afegit a la simulació de ${service.client}.` : `${candidate.name} assignat a ${service.client}.`);
 }
 
 function analyzeSchedule() {
@@ -2384,6 +3055,33 @@ function scoreAssignment(useDraft = true) {
   };
 }
 
+function scoreAssignmentFromAssignments(assignments) {
+  const workerState = createEmptyWorkerState();
+  const services = assignmentOrder(requiredServices().map((service) => ({ ...service, workerId: assignments[service.id] || "" })));
+  let score = 0;
+  let assigned = 0;
+
+  services.forEach((service) => {
+    const worker = getWorker(service.workerId);
+    if (!worker) {
+      score -= serviceMissPenalty(service);
+      return;
+    }
+    const result = evaluateWorkerForService(worker, service, workerState);
+    score += result.valid ? result.score : -serviceMissPenalty(service);
+    if (result.valid) {
+      assigned += 1;
+      applyWorkerState(worker.id, service, workerState, 1);
+    }
+  });
+
+  return {
+    score,
+    assigned,
+    label: `${assigned}/${services.length} serveis actius assignats`,
+  };
+}
+
 function createEmptyWorkerState() {
   return {
     hours: new Map(state.workers.map((worker) => [worker.id, 0])),
@@ -2573,7 +3271,7 @@ function bindBestButtons() {
       setServiceAssignment(service, worker.id);
       persist();
       render();
-      showToast(state.draftMode ? `${worker.name} afegit a l'esborrany.` : `${worker.name} assignat.`);
+      showToast(state.draftMode ? `${worker.name} afegit a la simulació.` : `${worker.name} assignat.`);
     });
   });
 }
@@ -2752,7 +3450,6 @@ function fillCalendarControls() {
 }
 
 function fillClientProfileControls() {
-  fillSelect(els.clientProfileForm.elements.client, uniqueClients());
   fillSelect(
     els.clientProfileForm.elements.preferredWorkerId,
     [{ value: "", label: "Sense preferit" }, ...state.workers.map((worker) => ({ value: worker.id, label: worker.name }))],
@@ -2987,6 +3684,7 @@ function getOccurrencesForDate(date) {
 }
 
 function serviceOccursOnDate(service, date) {
+  if (!isClientActive(service.client)) return false;
   if (!dateInRange(date, service.activeFrom || state.weekStart, service.activeTo || "")) return false;
   const type = service.recurrenceType || "weekly";
   const anchor = service.activeFrom || state.weekStart;
@@ -3143,7 +3841,7 @@ function serviceDateISO(service) {
 }
 
 function requiredServices() {
-  return state.services.filter((service) => serviceOccursOnDate(service, serviceDateISO(service)) && !isClientOnVacation(service));
+  return state.services.filter((service) => isClientActive(service.client) && serviceOccursOnDate(service, serviceDateISO(service)) && !isClientOnVacation(service));
 }
 
 function isClientOnVacation(service) {
@@ -3188,7 +3886,62 @@ function formatDisplayDate(date) {
 }
 
 function uniqueClients() {
-  return [...new Set(state.services.map((service) => service.client))].sort((a, b) => a.localeCompare(b));
+  return [
+    ...new Set([
+      ...state.services.map((service) => service.client),
+      ...Object.keys(state.clientProfiles || {}),
+      ...Object.keys(state.clientStatuses || {}),
+    ]),
+  ].sort((a, b) => a.localeCompare(b));
+}
+
+function getClientSummaries() {
+  const recurrences = getRecurrenceSummaries();
+  return uniqueClients().map((client) => {
+    const clientServices = state.services.filter((service) => service.client === client);
+    const clientRecurrences = recurrences.filter((recurrence) => recurrence.client === client);
+    return {
+      name: client,
+      status: clientStatus(client),
+      serviceCount: clientServices.length,
+      weeklyHours: clientRecurrences.reduce((sum, recurrence) => sum + recurrence.weeklyHours, 0),
+      zones: [...new Set(clientServices.map((service) => service.zone))].sort((a, b) => a.localeCompare(b)),
+      profile: Boolean(state.clientProfiles?.[client]),
+    };
+  });
+}
+
+function clientStatus(client) {
+  return state.clientStatuses?.[client] === "Baixa" ? "Baixa" : "Actiu";
+}
+
+function isClientActive(client) {
+  return clientStatus(client) === "Actiu";
+}
+
+function matchesClientStatusFilter(status) {
+  if (state.clientStatusFilter === "all") return true;
+  if (state.clientStatusFilter === "inactive") return status === "Baixa";
+  return status === "Actiu";
+}
+
+function renameClientReferences(previousClient, nextClient) {
+  if (!previousClient || !nextClient || previousClient === nextClient) return;
+  state.services = state.services.map((service) => (service.client === previousClient ? { ...service, client: nextClient } : service));
+  if (state.clientProfiles[previousClient] && !state.clientProfiles[nextClient]) state.clientProfiles[nextClient] = state.clientProfiles[previousClient];
+  delete state.clientProfiles[previousClient];
+  state.clientStatuses[nextClient] = state.clientStatuses[previousClient] || state.clientStatuses[nextClient] || "Actiu";
+  delete state.clientStatuses[previousClient];
+  state.vacations.clients = state.vacations.clients.map((vacation) =>
+    vacation.client === previousClient ? { ...vacation, client: nextClient } : vacation,
+  );
+  state.serviceLogs = state.serviceLogs.map((log) => (log.client === previousClient ? { ...log, client: nextClient } : log));
+  state.workers = state.workers.map((worker) => {
+    const history = { ...(worker.history || {}) };
+    if (history[previousClient] && !history[nextClient]) history[nextClient] = history[previousClient];
+    delete history[previousClient];
+    return { ...worker, history };
+  });
 }
 
 function getMonday(date) {
@@ -3300,6 +4053,11 @@ function normalizeState(rawState) {
     dashboardDate: rawState.dashboardDate || formatDateInput(new Date()),
     filter: rawState.filter || "all",
     plannerSearch: rawState.plannerSearch || "",
+    clientStatusFilter: ["active", "inactive", "all"].includes(rawState.clientStatusFilter) ? rawState.clientStatusFilter : "active",
+    workerStatusFilter: ["active", "inactive", "all"].includes(rawState.workerStatusFilter) ? rawState.workerStatusFilter : "active",
+    selectedClient: rawState.selectedClient || "",
+    selectedWorkerId: rawState.selectedWorkerId || "",
+    clientStatuses: rawState.clientStatuses && typeof rawState.clientStatuses === "object" && !Array.isArray(rawState.clientStatuses) ? rawState.clientStatuses : {},
     clientProfiles: normalizeClientProfiles(rawState.clientProfiles),
     serviceLogs: Array.isArray(rawState.serviceLogs) ? rawState.serviceLogs : [],
     vacations: normalizeVacations(rawState.vacations),
@@ -3368,6 +4126,17 @@ function normalizeState(rawState) {
       return [service.id, normalized.workers.some((worker) => worker.id === draftWorkerId) ? draftWorkerId : service.workerId || ""];
     }),
   );
+
+  const knownClients = new Set([
+    ...normalized.services.map((service) => service.client),
+    ...Object.keys(normalized.clientProfiles),
+    ...Object.keys(normalized.clientStatuses),
+  ]);
+  normalized.clientStatuses = Object.fromEntries(
+    [...knownClients].map((client) => [client, normalized.clientStatuses[client] === "Baixa" ? "Baixa" : "Actiu"]),
+  );
+  if (normalized.selectedClient && !knownClients.has(normalized.selectedClient)) normalized.selectedClient = "";
+  if (normalized.selectedWorkerId && !normalized.workers.some((worker) => worker.id === normalized.selectedWorkerId)) normalized.selectedWorkerId = "";
 
   return normalized;
 }

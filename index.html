@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Planificador de neteja</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260519-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -24,6 +24,7 @@
           <button class="nav-tab" data-view="clients" type="button">Clients</button>
           <button class="nav-tab" data-view="workers" type="button">Treballadors</button>
           <button class="nav-tab" data-view="vacations" type="button">Vacances</button>
+          <button class="nav-tab" data-view="options" type="button">Opcions</button>
         </nav>
 
         <div class="week-tools">
@@ -41,24 +42,31 @@
           </div>
           <div class="topbar-actions">
             <span id="assignmentScore" class="pill score-pill"></span>
-            <label class="inline-toggle">
+            <label id="draftModeControl" class="inline-toggle simulation-toggle">
               <input id="draftMode" type="checkbox" />
-              Esborrany
+              Simulació d'assignacions
             </label>
-            <label class="inline-toggle">
-              <input id="developerMode" type="checkbox" />
-              Mode desenvolupador
-            </label>
-            <button id="autoAssign" class="primary-button" type="button">Optimitzar setmana</button>
-            <button id="confirmDraft" class="primary-button is-hidden" type="button">Confirmar</button>
-            <button id="discardDraft" class="secondary-button is-hidden" type="button">Descartar</button>
+            <button id="autoAssign" class="primary-button" type="button">OPTIMITZAR</button>
+            <button id="confirmDraft" class="primary-button is-hidden" type="button">Aplicar simulació</button>
+            <button id="discardDraft" class="secondary-button is-hidden" type="button">Descartar simulació</button>
             <button id="clearAssignments" class="secondary-button" type="button">Netejar assignacions</button>
           </div>
-          <p id="draftScorePreview" class="score-preview is-hidden"></p>
+          <p id="draftScorePreview" class="score-preview"></p>
         </header>
 
         <section id="dashboard" class="view is-active" aria-labelledby="viewTitle">
           <div class="metric-grid" id="metrics"></div>
+          <section id="coordinationCenter" class="panel coordination-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Centre de previsio de coordinacio</h2>
+                <p class="meta">Contrasta necessitats de client amb assignacions confirmades i simulades.</p>
+              </div>
+              <span id="coordinationMode" class="pill"></span>
+            </div>
+            <div id="coordinationSummary" class="coordination-summary"></div>
+            <div id="coordinationAssignments" class="data-table"></div>
+          </section>
           <section class="panel daily-dashboard-panel">
             <div class="panel-header daily-header">
               <div>
@@ -79,7 +87,7 @@
           </section>
           <section id="draftComparisonPanel" class="panel draft-comparison-panel is-hidden">
             <div class="panel-header">
-              <h2>Comparador esborrany</h2>
+              <h2>Comparador de simulació</h2>
               <span id="draftComparisonCount" class="pill"></span>
             </div>
             <div id="draftComparisonList" class="data-table"></div>
@@ -103,6 +111,19 @@
         </section>
 
         <section id="planner" class="view" aria-labelledby="viewTitle">
+          <section class="panel planner-week-panel">
+            <div class="panel-header planner-week-header">
+              <div>
+                <h2 id="plannerWeekTitle">Setmana activa</h2>
+                <p id="plannerWeekRange" class="meta"></p>
+              </div>
+              <div class="week-navigator" aria-label="Navegacio setmanal">
+                <button id="plannerPrevWeek" class="secondary-button" type="button">Anterior</button>
+                <button id="plannerCurrentWeek" class="secondary-button" type="button">Aquesta setmana</button>
+                <button id="plannerNextWeek" class="secondary-button" type="button">Seguent</button>
+              </div>
+            </div>
+          </section>
           <div class="planner-toolbar">
             <div class="legend">
               <span><i class="dot covered"></i>Cobert</span>
@@ -171,7 +192,30 @@
 
         <section id="clients" class="view" aria-labelledby="viewTitle">
           <div class="management-layout">
-            <form id="serviceForm" class="panel form-panel">
+            <section class="panel wide-panel">
+              <div class="panel-header">
+                <h2>Clients</h2>
+                <span class="pill" id="clientServiceCount"></span>
+                <div class="header-actions">
+                  <button id="newClient" class="primary-button" type="button">Nou client</button>
+                  <button class="filter-button is-active" data-client-status-filter="active" type="button">Actius</button>
+                  <button class="filter-button" data-client-status-filter="inactive" type="button">Baixa</button>
+                  <button class="filter-button" data-client-status-filter="all" type="button">Tots</button>
+                </div>
+              </div>
+              <div id="clientOverview" class="data-table"></div>
+            </section>
+
+            <section id="clientDetailPanel" class="panel wide-panel detail-panel is-hidden">
+              <div class="panel-header">
+                <h2 id="clientDetailTitle">Detall del client</h2>
+                <span class="pill" id="clientDetailStatus"></span>
+                <div id="clientDetailActions" class="header-actions"></div>
+              </div>
+              <div id="clientDetailSummary" class="detail-summary"></div>
+            </section>
+
+            <form id="serviceForm" class="panel form-panel client-editor is-hidden">
               <div class="panel-header">
                 <h2>Servei recurrent</h2>
               </div>
@@ -230,16 +274,26 @@
                 Requisits
                 <input name="requirements" placeholder="claus, vehicle, vidres..." />
               </label>
-              <button class="primary-button full-width" type="submit">Afegir recurrencia</button>
+              <div class="form-actions">
+                <button id="serviceSubmitButton" class="primary-button" type="submit">Desar recurrencia</button>
+                <button id="serviceCancelEdit" class="secondary-button" type="button">Descartar</button>
+              </div>
             </form>
 
-            <form id="clientProfileForm" class="panel form-panel">
+            <form id="clientProfileForm" class="panel form-panel client-editor is-hidden">
               <div class="panel-header">
                 <h2>Fitxa de client</h2>
               </div>
               <label>
                 Client
-                <select name="client" required></select>
+                <input name="client" required placeholder="Ex. El paqui" />
+              </label>
+              <label>
+                Estat
+                <select name="status">
+                  <option value="Actiu">Actiu</option>
+                  <option value="Baixa">Baixa</option>
+                </select>
               </label>
               <label>
                 Treballador preferit
@@ -285,18 +339,21 @@
                 Notes operatives
                 <input name="notes" placeholder="Claus, alarma, accés, preferències..." />
               </label>
-              <button class="primary-button full-width" type="submit">Guardar fitxa</button>
+              <div class="form-actions">
+                <button id="clientProfileSubmitButton" class="primary-button" type="submit">Desar fitxa</button>
+                <button id="clientProfileCancelEdit" class="secondary-button" type="button">Descartar</button>
+              </div>
             </form>
 
-            <section class="panel">
+            <section class="panel client-detail is-hidden">
               <div class="panel-header">
                 <h2>Clients recurrents</h2>
-                <span class="pill" id="clientServiceCount"></span>
+                <span class="pill" id="clientRecurrenceCount"></span>
               </div>
               <div id="recurrenceTable" class="data-table"></div>
             </section>
 
-            <section class="panel wide-panel">
+            <section class="panel wide-panel client-detail is-hidden">
               <div class="panel-header">
                 <h2>Preferencies de clients</h2>
                 <span class="pill" id="clientProfileCount"></span>
@@ -304,7 +361,7 @@
               <div id="clientProfileTable" class="data-table"></div>
             </section>
 
-            <section class="panel wide-panel">
+            <section class="panel wide-panel client-detail is-hidden">
               <div class="panel-header">
                 <h2>Serveis generats</h2>
                 <span class="pill" id="generatedServiceCount"></span>
@@ -312,7 +369,7 @@
               <div id="serviceTable" class="data-table"></div>
             </section>
 
-            <section class="panel wide-panel">
+            <section class="panel wide-panel client-detail is-hidden">
               <div class="panel-header">
                 <h2>Historial de serveis fets</h2>
                 <span class="pill" id="serviceHistoryCount"></span>
@@ -324,7 +381,7 @@
 
         <section id="workers" class="view" aria-labelledby="viewTitle">
           <div class="management-layout">
-            <form id="workerForm" class="panel form-panel">
+            <form id="workerForm" class="panel form-panel worker-editor is-hidden">
               <div class="panel-header">
                 <h2 id="workerFormTitle">Nou treballador</h2>
               </div>
@@ -416,16 +473,31 @@
                 <legend>Disponibilitat</legend>
                 <div id="workerAvailability" class="availability-grid"></div>
               </fieldset>
-              <button id="workerSubmitButton" class="primary-button full-width" type="submit">Afegir treballador</button>
-              <button id="workerCancelEdit" class="secondary-button full-width is-hidden" type="button">Cancel·lar edicio</button>
+              <div class="form-actions">
+                <button id="workerSubmitButton" class="primary-button" type="submit">Desar treballador</button>
+                <button id="workerCancelEdit" class="secondary-button" type="button">Descartar</button>
+              </div>
             </form>
 
-            <section class="panel">
+            <section class="panel wide-panel">
               <div class="panel-header">
                 <h2>Equip</h2>
                 <span class="pill" id="workerCount"></span>
+                <div class="header-actions">
+                  <button id="newWorker" class="primary-button" type="button">Nou treballador</button>
+                  <button class="filter-button is-active" data-worker-status-filter="active" type="button">Actius</button>
+                  <button class="filter-button" data-worker-status-filter="inactive" type="button">Baixa</button>
+                  <button class="filter-button" data-worker-status-filter="all" type="button">Tots</button>
+                </div>
               </div>
               <div id="workerTable" class="data-table"></div>
+            </section>
+            <section id="workerDetailPanel" class="panel wide-panel detail-panel is-hidden">
+              <div class="panel-header">
+                <h2 id="workerDetailTitle">Detall del treballador</h2>
+                <div id="workerDetailActions" class="header-actions"></div>
+              </div>
+              <div id="workerDetailSummary" class="detail-summary"></div>
             </section>
             <section class="panel wide-panel">
               <div class="panel-header">
@@ -508,6 +580,26 @@
             </section>
           </div>
         </section>
+
+        <section id="options" class="view" aria-labelledby="viewTitle">
+          <section class="panel wide-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Opcions</h2>
+                <p class="meta">Configuració de la interfície i eines de diagnòstic.</p>
+              </div>
+            </div>
+            <div class="settings-list">
+              <label class="settings-row">
+                <span>
+                  <strong>Mode desenvolupador</strong>
+                  <small>Mostra puntuacions comparades i informació de diagnòstic de la simulació.</small>
+                </span>
+                <input id="developerMode" type="checkbox" />
+              </label>
+            </div>
+          </section>
+        </section>
       </main>
     </div>
 
@@ -526,7 +618,26 @@
       </section>
     </div>
 
-    <script src="app.js"></script>
+    <div id="autoAssignModal" class="modal-backdrop" hidden aria-hidden="true">
+      <section class="day-modal auto-assign-modal" role="dialog" aria-modal="true" aria-labelledby="autoAssignModalTitle">
+        <header class="modal-header">
+          <div>
+            <p class="eyebrow">Previsualitzacio automatica</p>
+            <h2 id="autoAssignModalTitle">Canvis proposats</h2>
+            <p id="autoAssignModalSubtitle" class="meta"></p>
+          </div>
+          <button id="autoAssignModalClose" class="icon-button" type="button" aria-label="Tancar finestra">Tancar</button>
+        </header>
+        <div id="autoAssignModalSummary" class="modal-summary"></div>
+        <div id="autoAssignModalChanges" class="data-table modal-change-list"></div>
+        <footer class="modal-actions">
+          <button id="autoAssignDiscard" class="secondary-button" type="button">Descartar proposta</button>
+          <button id="autoAssignConfirm" class="primary-button" type="button">Confirmar proposta</button>
+        </footer>
+      </section>
+    </div>
+
+    <script src="app.js?v=20260519-1"></script>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </body>
 </html>
