@@ -11,26 +11,37 @@
       <aside class="sidebar" aria-label="Navegacio principal">
         <div class="brand">
           <span class="brand-mark">N</span>
-          <div>
+          <div class="brand-text">
             <strong>Neteja Pro</strong>
             <small>Planificacio anual</small>
           </div>
+          <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Colapsar menu lateral">‹</button>
         </div>
 
         <nav class="nav-tabs" aria-label="Seccions">
-          <button class="nav-tab is-active" data-view="dashboard" type="button">Resum</button>
-          <button class="nav-tab" data-view="planner" type="button">Planificador</button>
-          <button class="nav-tab" data-view="calendar" type="button">Calendari</button>
-          <button class="nav-tab" data-view="clients" type="button">Clients</button>
-          <button class="nav-tab" data-view="workers" type="button">Treballadors</button>
-          <button class="nav-tab" data-view="vacations" type="button">Vacances</button>
-          <button class="nav-tab" data-view="options" type="button">Opcions</button>
+          <button class="nav-tab is-active" data-view="dashboard" data-short="R" type="button">Resum</button>
+          <button class="nav-tab" data-view="planner" data-short="P" type="button">Planificador</button>
+          <button class="nav-tab" data-view="calendar" data-short="C" type="button">Calendari</button>
+          <button class="nav-tab" data-view="risks" data-short="!" type="button">Riscos <span id="riskNavBadge" class="nav-badge is-hidden">0</span></button>
+          <button class="nav-tab" data-view="clients" data-short="CL" type="button">Clients</button>
+          <button class="nav-tab" data-view="workers" data-short="T" type="button">Treballadors</button>
+          <button class="nav-tab" data-view="vacations" data-short="V" type="button">Vacances</button>
+          <button class="nav-tab" data-view="options" data-short="O" type="button">Opcions</button>
         </nav>
 
         <div class="week-tools">
           <label for="weekStart">Setmana</label>
           <input id="weekStart" type="date" />
           <button id="resetData" class="ghost-button" type="button">Reiniciar dades</button>
+        </div>
+
+        <div class="access-tools" aria-label="Sessio">
+          <label for="userRole">Usuari</label>
+          <select id="userRole">
+            <option value="admin">Administrador</option>
+            <option value="worker">Treballador</option>
+          </select>
+          <select id="userWorker" aria-label="Treballador actiu"></select>
         </div>
       </aside>
 
@@ -42,72 +53,71 @@
           </div>
           <div class="topbar-actions">
             <span id="assignmentScore" class="pill score-pill"></span>
-            <label id="draftModeControl" class="inline-toggle simulation-toggle">
+            <label id="draftModeControl" class="inline-toggle assignment-mode-toggle">
               <input id="draftMode" type="checkbox" />
-              Simulació d'assignacions
+              Mode assignació
             </label>
             <button id="autoAssign" class="primary-button" type="button">OPTIMITZAR</button>
-            <button id="confirmDraft" class="primary-button is-hidden" type="button">Aplicar simulació</button>
-            <button id="discardDraft" class="secondary-button is-hidden" type="button">Descartar simulació</button>
+            <button id="confirmDraft" class="primary-button is-hidden" type="button">Aplicar assignació</button>
+            <button id="discardDraft" class="secondary-button is-hidden" type="button">Descartar proposta</button>
             <button id="clearAssignments" class="secondary-button" type="button">Netejar assignacions</button>
           </div>
           <p id="draftScorePreview" class="score-preview"></p>
         </header>
 
         <section id="dashboard" class="view is-active" aria-labelledby="viewTitle">
+          <section class="panel daily-dashboard-panel">
+            <div class="panel-header daily-header">
+              <div>
+                <h2>Serveis d'avui</h2>
+                <p id="dashboardDaySummary" class="meta"></p>
+              </div>
+              <div class="daily-controls">
+                <button id="quickServiceOpen" class="primary-button quick-service-cta" type="button">+ Nou servei</button>
+                <span id="dashboardDayCount" class="pill"></span>
+              </div>
+            </div>
+            <div id="dashboardDayPlan" class="daily-plan-list"></div>
+          </section>
           <div class="metric-grid" id="metrics"></div>
-          <section id="coordinationCenter" class="panel coordination-panel">
+          <section id="draftComparisonPanel" class="panel draft-comparison-panel is-hidden">
+            <div class="panel-header">
+              <h2>Comparador de mode assignació</h2>
+              <span id="draftComparisonCount" class="pill"></span>
+            </div>
+            <div id="draftComparisonList" class="data-table"></div>
+          </section>
+          <section id="coordinationCenter" class="panel coordination-panel is-hidden">
             <div class="panel-header">
               <div>
-                <h2>Centre de previsio de coordinacio</h2>
-                <p class="meta">Contrasta necessitats de client amb assignacions confirmades i simulades.</p>
+                <h2>Impacte de la proposta</h2>
+                <p class="meta">Compara la planificacio confirmada amb el mode assignacio actiu.</p>
               </div>
               <span id="coordinationMode" class="pill"></span>
             </div>
             <div id="coordinationSummary" class="coordination-summary"></div>
             <div id="coordinationAssignments" class="data-table"></div>
           </section>
-          <section class="panel daily-dashboard-panel">
-            <div class="panel-header daily-header">
-              <div>
-                <h2>Planificacio del dia</h2>
-                <p id="dashboardDaySummary" class="meta"></p>
-              </div>
-              <div class="daily-controls">
-                <label class="inline-search">
-                  <span>Dia</span>
-                  <input id="dashboardDate" type="date" />
-                </label>
-                <button id="dashboardToday" class="secondary-button" type="button">Avui</button>
-                <button id="dashboardNextServiceDay" class="secondary-button" type="button">Proxim servei</button>
-                <span id="dashboardDayCount" class="pill"></span>
-              </div>
-            </div>
-            <div id="dashboardDayPlan" class="daily-plan-list"></div>
-          </section>
-          <section id="draftComparisonPanel" class="panel draft-comparison-panel is-hidden">
+          <section class="panel">
             <div class="panel-header">
-              <h2>Comparador de simulació</h2>
-              <span id="draftComparisonCount" class="pill"></span>
+              <h2>Accions pendents</h2>
+              <span id="serviceCount" class="pill"></span>
             </div>
-            <div id="draftComparisonList" class="data-table"></div>
+            <div id="upcomingServices" class="service-list"></div>
           </section>
-          <div class="split-layout">
-            <section class="panel">
-              <div class="panel-header">
-                <h2>Accions pendents</h2>
-                <span id="serviceCount" class="pill"></span>
+        </section>
+
+        <section id="risks" class="view" aria-labelledby="viewTitle">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Riscos operatius</h2>
+                <p class="meta">Situacions que convé revisar abans que afectin la planificacio.</p>
               </div>
-              <div id="upcomingServices" class="service-list"></div>
-            </section>
-            <section class="panel">
-              <div class="panel-header">
-                <h2>Seguiment</h2>
-                <span id="conflictCount" class="pill danger"></span>
-              </div>
-              <div id="conflicts" class="conflict-list"></div>
-            </section>
-          </div>
+              <span id="conflictCount" class="pill danger"></span>
+            </div>
+            <div id="conflicts" class="conflict-list"></div>
+          </section>
         </section>
 
         <section id="planner" class="view" aria-labelledby="viewTitle">
@@ -163,15 +173,7 @@
                 <option value="paused">Pausats</option>
               </select>
             </label>
-            <label class="inline-search">
-              <span>Des de</span>
-              <input id="calendarRangeStart" type="date" />
-            </label>
-            <label class="inline-search">
-              <span>Fins</span>
-              <input id="calendarRangeEnd" type="date" />
-            </label>
-            <button id="calendarOptimizeRange" class="primary-button" type="button">Optimitzar rang</button>
+            <button id="calendarOptimizeYear" class="primary-button" type="button">Optimitzar any</button>
           </div>
           <div id="calendarSummary" class="metric-grid compact-metrics"></div>
           <section class="panel">
@@ -217,8 +219,21 @@
 
             <form id="serviceForm" class="panel form-panel client-editor is-hidden">
               <div class="panel-header">
-                <h2>Servei recurrent</h2>
+                <h2 id="serviceFormTitle">Servei</h2>
               </div>
+              <fieldset class="day-picker service-mode-picker">
+                <legend>Tipus de servei</legend>
+                <div class="day-checks">
+                  <label class="day-check">
+                    <input name="serviceMode" type="radio" value="recurring" checked />
+                    Recurrent
+                  </label>
+                  <label class="day-check">
+                    <input name="serviceMode" type="radio" value="single" />
+                    Puntual
+                  </label>
+                </div>
+              </fieldset>
               <label>
                 Client
                 <input name="client" required placeholder="Ex. El paqui" />
@@ -226,6 +241,10 @@
               <label>
                 Zona
                 <select name="zone" required></select>
+              </label>
+              <label data-single-service-field class="is-hidden">
+                Dia puntual
+                <input name="singleDate" type="date" />
               </label>
               <fieldset class="day-picker">
                 <legend>Dies recurrents</legend>
@@ -235,6 +254,7 @@
                 <label>
                   Periodicitat
                   <select name="recurrenceType">
+                    <option value="once">Puntual</option>
                     <option value="weekly" selected>Setmanal</option>
                     <option value="biweekly">Cada 2 setmanes</option>
                     <option value="monthly">Mensual</option>
@@ -257,7 +277,7 @@
                   <input name="start" type="time" required value="09:00" />
                 </label>
                 <label>
-                  Hores per visita
+                  Hores per servei
                   <input name="durationHours" type="number" min="0.5" max="12" step="0.5" required value="2" />
                 </label>
               </div>
@@ -333,6 +353,40 @@
                     <option value="review">Revisar abans de canviar</option>
                     <option value="strict">Canviar nomes si es necessari</option>
                   </select>
+                </label>
+              </div>
+              <div class="form-row two-cols">
+                <label>
+                  NIF / CIF
+                  <input name="taxId" placeholder="Ex. B12345678" />
+                </label>
+                <label>
+                  Persona de contacte
+                  <input name="contactName" placeholder="Nom de contacte" />
+                </label>
+              </div>
+              <div class="form-row two-cols">
+                <label>
+                  Telefon
+                  <input name="contactPhone" type="tel" placeholder="Ex. 600 000 000" />
+                </label>
+                <label>
+                  Email
+                  <input name="contactEmail" type="email" placeholder="client@exemple.cat" />
+                </label>
+              </div>
+              <label>
+                Adreca
+                <input name="address" placeholder="Carrer, numero, pis..." />
+              </label>
+              <div class="form-row two-cols">
+                <label>
+                  Poblacio
+                  <input name="city" placeholder="Ex. Palma" />
+                </label>
+                <label>
+                  Codi postal
+                  <input name="postalCode" inputmode="numeric" placeholder="07000" />
                 </label>
               </div>
               <label>
@@ -593,7 +647,7 @@
               <label class="settings-row">
                 <span>
                   <strong>Mode desenvolupador</strong>
-                  <small>Mostra puntuacions comparades i informació de diagnòstic de la simulació.</small>
+                  <small>Mostra puntuacions comparades i informació de diagnòstic del mode assignació.</small>
                 </span>
                 <input id="developerMode" type="checkbox" />
               </label>
@@ -634,6 +688,113 @@
           <button id="autoAssignDiscard" class="secondary-button" type="button">Descartar proposta</button>
           <button id="autoAssignConfirm" class="primary-button" type="button">Confirmar proposta</button>
         </footer>
+      </section>
+    </div>
+
+    <div id="quickServiceModal" class="modal-backdrop" hidden aria-hidden="true">
+      <section class="day-modal quick-service-modal" role="dialog" aria-modal="true" aria-labelledby="quickServiceTitle">
+        <header class="modal-header">
+          <div>
+            <p class="eyebrow">Entrada rapida</p>
+            <h2 id="quickServiceTitle">Nou servei</h2>
+            <p id="quickServiceSubtitle" class="meta">Crea un servei sense passar per la fitxa completa del client.</p>
+          </div>
+          <button id="quickServiceClose" class="icon-button" type="button" aria-label="Tancar finestra">Tancar</button>
+        </header>
+        <form id="quickServiceForm" class="quick-service-form">
+          <fieldset class="day-picker service-mode-picker">
+            <legend>Tipus de servei</legend>
+            <div class="day-checks">
+              <label class="day-check">
+                <input name="serviceMode" type="radio" value="single" checked />
+                Puntual
+              </label>
+              <label class="day-check">
+                <input name="serviceMode" type="radio" value="recurring" />
+                Recurrent
+              </label>
+            </div>
+          </fieldset>
+
+          <label>
+            Client
+            <input name="client" list="quickServiceClientOptions" required placeholder="Client actiu, baixa o nou" />
+            <datalist id="quickServiceClientOptions"></datalist>
+          </label>
+
+          <label>
+            Zona
+            <select name="zone" required></select>
+          </label>
+
+          <label data-quick-single-field>
+            Dia
+            <input name="singleDate" type="date" />
+          </label>
+
+          <div class="form-row two-cols" data-quick-recurring-field>
+            <label>
+              Actiu des de
+              <input name="activeFrom" type="date" />
+            </label>
+            <label>
+              Actiu fins
+              <input name="activeTo" type="date" />
+            </label>
+          </div>
+
+          <fieldset class="day-picker" data-quick-recurring-field>
+            <legend>Dies recurrents</legend>
+            <div id="quickServiceDays" class="day-checks"></div>
+          </fieldset>
+
+          <div class="form-row two-cols">
+            <label>
+              Inici
+              <input name="start" type="time" required value="09:00" />
+            </label>
+            <label>
+              Hores
+              <input name="durationHours" type="number" min="0.5" max="12" step="0.5" required value="2" />
+            </label>
+          </div>
+
+          <div class="form-row two-cols">
+            <label>
+              Prioritat
+              <select name="priority">
+                <option value="Alta">Alta</option>
+                <option value="Mitjana" selected>Mitjana</option>
+                <option value="Baixa">Baixa</option>
+              </select>
+            </label>
+            <label>
+              Assignacio
+              <select name="assignmentMode">
+                <option value="suggest">Suggerir millor treballador</option>
+                <option value="fixed">Assignar sempre el mateix</option>
+                <option value="none">Deixar pendent</option>
+              </select>
+            </label>
+          </div>
+
+          <label data-quick-fixed-worker class="is-hidden">
+            Treballador fix
+            <select name="workerId"></select>
+          </label>
+
+          <label>
+            Requisits
+            <input name="requirements" placeholder="claus, vehicle, vidres..." />
+          </label>
+
+          <div id="quickServiceRecommendations" class="quick-service-recommendations"></div>
+
+          <footer class="modal-actions">
+            <button id="quickServiceCancel" class="secondary-button" type="button">Descartar</button>
+            <button class="primary-button" type="submit">Crear servei</button>
+          </footer>
+        </form>
       </section>
     </div>
 

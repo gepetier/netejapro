@@ -1,5 +1,7 @@
 .edge-*/
 .tools/
+.idea/
+audit-output/
 server.log
 server.err
 *.tmp

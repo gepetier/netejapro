@@ -1,7 +1,30 @@
-COSES A ARREGLAR / AFEGIR QUAN TORNIN ELS TOKENS.
+TODO IMPLEMENTAT
 
-· Es necessaria la assignacio dia a dia de cadascun dels serveis, ara mateix la assignació treballador / es massa extensa i necessitem poder assignar per exemple un servei que s'ha de anar tots els dijous de agost a una persona diferent cada dijous.
-· La modificació de client / treballador queda mal ajustada al ample de la pantalla.
-· Els selectors de calendari a la pestanya "calendari" de "Des de" i "Fins" no tenen sentit, es poden eliminar
-· A client necessitarem salvar tota la informació necessària, ubicació, NIF, persona de contacte, etc
-· En algun moment del desenvolupament haurem de poguer fer Login de diferents usuaris, 1 de administrador que es la interificie actual sense restriccions i un per a cadascun dels treballadors. Aixi podran veure fàcilment quin son els serveis que tenen i la informació necessària per fer-los. Els usuaris NOMES podran veure la informació relacionada amb ells.
+- Fet: assignacio dia a dia dels serveis des del calendari i el resum diari.
+- Fet: formularis de client i treballador ajustats a l'amplada disponible i responsive.
+- Fet: eliminats els selectors "Des de" i "Fins" de la pestanya Calendari.
+- Fet: fitxa de client ampliada amb ubicacio, NIF/CIF, contacte, telefon, email i notes.
+- Fet: sessio local d'administrador/treballador amb vista limitada per treballador.
+- Fet: creacio explicita de serveis puntuals d'un sol dia i unes hores.
+- Fet: flux rapid "Nou servei" des del Resum, amb client actiu, de baixa o nou, servei puntual/recurrent i suggeriment de treballador.
+- Fet: model base de serveis amb trams horaris normalitzats.
+- Fet: Resum, Planificador, Calendari i optimitzador ja treballen amb el tram com a unitat d'assignacio.
+- Fet: recalcul automatic per trams per disponibilitat, solapaments, carregues i baixes.
+- Fet: vocabulari principal alineat a "Mode assignacio", servei i assignacio.
+
+TODO PENDENT PRIORITARI
+
+- Editor de servei amb gestio manual de trams: afegir, editar i eliminar trams dins el mateix servei, per exemple 10:00-13:00 i 15:00-17:00.
+- Assignacions multiples dins un mateix tram: repartir un servei llarg, per exemple 9 h entre 3 persones x 3 h.
+- Detall unic de servei/assignacio accessible des de Resum, Planificador, Calendari i Clients.
+- Protegir accions destructives amb confirmacions: eliminar, reiniciar dades, netejar assignacions, baixa + recalcular i eliminar vacances/absencies.
+- Reordenar Resum com a centre operatiu: primer bloc Avui/Dema, accions rapides, serveis pendents i conflictes immediats.
+- Calendari amb vistes setmanal i mensual, filtres per treballador i millor edicio de serveis/assignacions.
+- Clients amb pestanyes internes: Fitxa, Serveis, Historial i Preferencies.
+- Treballadors amb vista individual setmanal i mensual.
+- Revisar vocabulari i textos per mantenir consistencia: servei, assignacio, mode assignacio, recalcul, optimitzar i aplicar.
+
+TODO
+-AL entrar a la pestanya planificador s'ha de posar en "aquesta setmana"
+-Millorar la UI de la barra lateral col·lapsada
+-Eliminar el calendari la barra lateral col·lapsada i el botó "reiniciar dades"

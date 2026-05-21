@@ -72,9 +72,15 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 0.18s ease;
+}
+
+.sidebar-collapsed .app-shell {
+  grid-template-columns: 88px minmax(0, 1fr);
 }
 
 .sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -88,6 +94,10 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.brand-text {
+  min-width: 0;
 }
 
 .brand-mark {
@@ -112,6 +122,18 @@ textarea:focus-visible {
   color: rgba(245, 251, 248, 0.68);
 }
 
+.sidebar-toggle {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--sidebar-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5fbf8;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 .nav-tabs {
   display: grid;
   gap: 8px;
@@ -130,6 +152,19 @@ textarea:focus-visible {
 
 .nav-tab {
   padding: 0 14px;
+  position: relative;
+}
+
+.nav-badge {
+  float: right;
+  min-width: 24px;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: #fee2e2;
+  color: #b7392f;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-align: center;
 }
 
 .nav-tab:hover,
@@ -145,18 +180,74 @@ textarea:focus-visible {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
-.week-tools {
+.sidebar-collapsed .sidebar {
+  gap: 18px;
+  padding: 18px;
+}
+
+.sidebar-collapsed .brand {
+  justify-content: center;
+}
+
+.sidebar-collapsed .brand-text,
+.sidebar-collapsed .week-tools,
+.sidebar-collapsed .access-tools {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-toggle {
+  position: absolute;
+  top: 62px;
+  left: 56px;
+  margin-left: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--sidebar-soft);
+}
+
+.sidebar-collapsed .nav-tab {
+  min-height: 44px;
+  padding: 0;
+  color: transparent;
+  text-align: center;
+}
+
+.sidebar-collapsed .nav-tab::before {
+  content: attr(data-short);
+  color: #f5fbf8;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.sidebar-collapsed .nav-tab.is-active::before {
+  color: var(--accent-strong);
+}
+
+.sidebar-collapsed .nav-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  float: none;
+}
+
+.week-tools,
+.access-tools {
   display: grid;
   gap: 10px;
+}
+
+.week-tools {
   margin-top: auto;
 }
 
-.week-tools label {
+.week-tools label,
+.access-tools label {
   color: rgba(245, 251, 248, 0.68);
   font-size: 0.9rem;
 }
 
-.week-tools input {
+.week-tools input,
+.access-tools select {
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--sidebar-line);
@@ -410,10 +501,13 @@ h3 {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
   gap: 16px;
+  align-items: start;
 }
 
 .daily-dashboard-panel {
   margin-bottom: 16px;
+  border-color: #9dccbf;
+  box-shadow: 0 14px 30px rgba(20, 124, 114, 0.08);
 }
 
 .daily-header {
@@ -434,6 +528,14 @@ h3 {
   padding: 0 12px;
   color: var(--ink);
   background: var(--surface);
+}
+
+.quick-service-cta {
+  min-height: 48px;
+  padding: 0 20px;
+  font-size: 1rem;
+  font-weight: 900;
+  box-shadow: 0 12px 24px rgba(20, 124, 114, 0.24);
 }
 
 .daily-plan-list {
@@ -485,6 +587,36 @@ h3 {
 
 .daily-main h3 {
   margin-bottom: 4px;
+}
+
+.daily-worker {
+  display: inline-grid;
+  gap: 2px;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface-tint);
+}
+
+.daily-worker span {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.daily-worker small {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.daily-worker.is-covered {
+  border-color: rgba(20, 124, 114, 0.32);
+  background: #eef8f5;
+}
+
+.daily-worker.is-open {
+  border-color: rgba(188, 94, 44, 0.32);
+  background: #fff6ef;
 }
 
 .daily-notes {
@@ -596,13 +728,13 @@ h3 {
   accent-color: var(--accent);
 }
 
-.simulation-toggle {
+.assignment-mode-toggle {
   border-color: #9dccbf;
   background: #eef8f5;
   color: var(--accent-strong);
 }
 
-.simulation-toggle.is-active {
+.assignment-mode-toggle.is-active {
   border-color: #147c72;
   background: #dff2ec;
   box-shadow: inset 0 0 0 1px rgba(20, 124, 114, 0.2);
@@ -1083,6 +1215,52 @@ button:disabled {
   padding: 14px 18px 18px;
 }
 
+.quick-service-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 0;
+  padding-top: 6px;
+}
+
+.quick-service-form > fieldset,
+.quick-service-form > .form-row,
+.quick-service-form > .quick-service-recommendations,
+.quick-service-form > .modal-actions {
+  grid-column: 1 / -1;
+}
+
+.quick-service-form label {
+  display: grid;
+  gap: 7px;
+  padding: 12px 18px 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.quick-service-form input:not([type="checkbox"]):not([type="radio"]),
+.quick-service-form select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.quick-service-recommendations {
+  display: grid;
+  gap: 10px;
+  padding: 12px 18px 0;
+}
+
+.quick-candidate-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .modal-worker-select {
   width: min(420px, 100%);
   min-height: 38px;
@@ -1331,6 +1509,27 @@ button:disabled {
   padding-bottom: 18px;
 }
 
+.client-editor,
+.worker-editor {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  align-items: start;
+}
+
+.client-editor > .panel-header,
+.worker-editor > .panel-header,
+.client-editor > fieldset,
+.worker-editor > fieldset,
+.client-editor > .form-row,
+.worker-editor > .form-row,
+.client-editor > .form-summary,
+.worker-editor > .form-summary,
+.client-editor > .form-actions,
+.worker-editor > .form-actions {
+  grid-column: 1 / -1;
+}
+
 .form-section {
   display: grid;
   gap: 0;
@@ -1516,6 +1715,10 @@ button:disabled {
   align-items: center;
 }
 
+.table-row > div {
+  min-width: 0;
+}
+
 .comparison-row,
 .load-row {
   display: grid;
@@ -1640,7 +1843,7 @@ button:disabled {
   }
 
   .nav-tabs {
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(8, 1fr);
   }
 
   .week-tools {
@@ -1707,8 +1910,11 @@ button:disabled {
   .vacation-calendar,
   .year-calendar,
   .modal-summary,
+  .quick-service-form,
   .form-row,
   .form-row.two-cols,
+  .client-editor,
+  .worker-editor,
   .day-checks,
   .availability-row,
   .time-pair {
